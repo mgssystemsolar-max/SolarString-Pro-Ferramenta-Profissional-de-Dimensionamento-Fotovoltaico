@@ -41,6 +41,88 @@ export function calculateStringSizing(
   const errorFields: string[] = [];
   const warningFields: string[] = [];
 
+  // --- 0. Input Sanity Checks ---
+
+  // Module Checks
+  if (module.power <= 0) {
+    warnings.push("A potência do módulo deve ser maior que 0.");
+    errorFields.push("module.power");
+  }
+  if (module.voc <= 0) {
+    warnings.push("A tensão de circuito aberto (Voc) deve ser maior que 0.");
+    errorFields.push("module.voc");
+  }
+  if (module.vmp <= 0) {
+    warnings.push("A tensão de máxima potência (Vmp) deve ser maior que 0.");
+    errorFields.push("module.vmp");
+  }
+  if (module.vmp >= module.voc && module.voc > 0) {
+    warnings.push("A tensão Vmp deve ser menor que Voc.");
+    errorFields.push("module.vmp", "module.voc");
+  }
+  if (module.isc <= 0) {
+    warnings.push("A corrente de curto-circuito (Isc) deve ser maior que 0.");
+    errorFields.push("module.isc");
+  }
+  if (module.imp <= 0) {
+    warnings.push("A corrente de máxima potência (Imp) deve ser maior que 0.");
+    errorFields.push("module.imp");
+  }
+  if (module.imp >= module.isc && module.isc > 0) {
+    warnings.push("A corrente Imp deve ser menor que Isc.");
+    errorFields.push("module.imp", "module.isc");
+  }
+  if (module.tempCoeffVoc > 0) {
+    warnings.push("O coeficiente de temperatura do Voc geralmente é negativo.");
+    warningFields.push("module.tempCoeffVoc");
+  }
+  if (module.tempCoeffVmp > 0) {
+    warnings.push("O coeficiente de temperatura do Vmp (Pmax) geralmente é negativo.");
+    warningFields.push("module.tempCoeffVmp");
+  }
+
+  // Inverter Checks
+  if (inverter.maxInputVoltage <= 0) {
+    warnings.push("A tensão máxima de entrada do inversor deve ser maior que 0.");
+    errorFields.push("inverter.maxInputVoltage");
+  }
+  if (inverter.minMpptVoltage < 0) {
+    warnings.push("A tensão mínima do MPPT não pode ser negativa.");
+    errorFields.push("inverter.minMpptVoltage");
+  }
+  if (inverter.maxMpptVoltage <= inverter.minMpptVoltage) {
+    warnings.push("A tensão máxima do MPPT deve ser maior que a mínima.");
+    errorFields.push("inverter.maxMpptVoltage", "inverter.minMpptVoltage");
+  }
+  if (inverter.maxMpptVoltage > inverter.maxInputVoltage) {
+    warnings.push("A tensão máxima do MPPT não deve exceder a tensão máxima de entrada.");
+    warningFields.push("inverter.maxMpptVoltage", "inverter.maxInputVoltage");
+  }
+  if (inverter.maxInputCurrent <= 0) {
+    warnings.push("A corrente máxima de entrada do inversor deve ser maior que 0.");
+    errorFields.push("inverter.maxInputCurrent");
+  }
+
+  // Site Checks
+  if (site.minTemp > site.maxTemp) {
+    warnings.push("A temperatura mínima não pode ser maior que a máxima.");
+    errorFields.push("site.minTemp", "site.maxTemp");
+  }
+
+  // If we have critical errors, stop calculation or return early with errors
+  if (errorFields.length > 0) {
+    return {
+      maxModules: 0,
+      minModules: 0,
+      vocMax: 0,
+      vmpMin: 0,
+      isCompatible: false,
+      warnings,
+      errorFields,
+      warningFields
+    };
+  }
+
   // 1. Calculate Temperature Corrected Voltages
   // Formula: V_new = V_stc * (1 + (T_new - 25) * (Coeff / 100))
   

@@ -7,6 +7,7 @@ import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, Sizi
 import { MODULE_PRESETS, ModulePreset } from './utils/presets';
 import { extractInverterData, extractModuleData } from './utils/ocr';
 import { generatePDF } from './utils/pdf';
+import { initiateGoogleAuth, searchDriveFiles, downloadDriveFile, DriveFile } from './utils/drive';
 
 interface HistoryItem {
   id: string;
@@ -49,6 +50,13 @@ export default function App() {
   const [moduleOcrError, setModuleOcrError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  // Drive State
+  const [googleEmail, setGoogleEmail] = useState("");
+  const [driveToken, setDriveToken] = useState<string | null>(null);
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [isDriveLoading, setIsDriveLoading] = useState(false);
+  const [showDriveModal, setShowDriveModal] = useState<'inverter' | 'module' | null>(null);
+
   // Load history on mount
   useEffect(() => {
     const saved = localStorage.getItem('solarHistory');
@@ -59,7 +67,83 @@ export default function App() {
         console.error("Failed to parse history", e);
       }
     }
+
+    // Listen for auth messages
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        setDriveToken(event.data.accessToken);
+        // Automatically fetch files after auth
+        fetchDriveFiles(event.data.accessToken);
+      } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+        alert('Erro na autenticação do Google: ' + event.data.error);
+      }
+    };
+    window.addEventListener('message', handleAuthMessage);
+    return () => window.removeEventListener('message', handleAuthMessage);
   }, []);
+
+  const fetchDriveFiles = async (token: string) => {
+    setIsDriveLoading(true);
+    try {
+      const files = await searchDriveFiles(token);
+      setDriveFiles(files);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao buscar arquivos no Drive.");
+    } finally {
+      setIsDriveLoading(false);
+    }
+  };
+
+  const handleDriveAuth = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      alert("Configure o VITE_GOOGLE_CLIENT_ID no arquivo .env");
+      return;
+    }
+    initiateGoogleAuth(clientId, googleEmail);
+  };
+
+  const handleDriveFileSelect = async (fileId: string) => {
+    if (!driveToken || !showDriveModal) return;
+    
+    setIsDriveLoading(true);
+    try {
+      const blob = await downloadDriveFile(driveToken, fileId);
+      const file = new File([blob], "drive-file", { type: blob.type });
+      
+      if (showDriveModal === 'inverter') {
+         setIsOcrLoading(true);
+         setOcrError(null);
+         try {
+           const data = await extractInverterData(file);
+           setInverter(prev => ({ ...prev, ...data }));
+         } catch (err) {
+           setOcrError("Falha ao processar arquivo do Drive.");
+         } finally {
+           setIsOcrLoading(false);
+         }
+      } else {
+         setIsModuleOcrLoading(true);
+         setModuleOcrError(null);
+         try {
+           const data = await extractModuleData(file);
+           setModule(prev => ({ ...prev, ...data }));
+           setSelectedPreset("Módulo Importado (Drive)");
+         } catch (err) {
+           setModuleOcrError("Falha ao processar arquivo do Drive.");
+         } finally {
+           setIsModuleOcrLoading(false);
+         }
+      }
+      setShowDriveModal(null);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao baixar arquivo do Drive.");
+    } finally {
+      setIsDriveLoading(false);
+    }
+  };
 
   // Save history when result changes (debounced or manual save? Let's do manual save or auto-add to list logic)
   // Actually, let's add a "Save Calculation" button or just auto-save valid results?
@@ -196,6 +280,87 @@ export default function App() {
         </div>
       </header>
 
+      {/* Drive Selection Modal */}
+      {showDriveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Database size={18} className="text-blue-500" /> 
+                Importar do Google Drive
+              </h3>
+              <button 
+                onClick={() => setShowDriveModal(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {!driveToken ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-600">
+                    Conecte sua conta Google para acessar seus datasheets (PDF ou Imagens).
+                  </p>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Email (opcional, para facilitar login)</label>
+                    <input 
+                      type="email" 
+                      value={googleEmail}
+                      onChange={(e) => setGoogleEmail(e.target.value)}
+                      placeholder="exemplo@gmail.com"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleDriveAuth}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    Conectar Google Drive
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-medium text-slate-900">Arquivos Recentes</h4>
+                    <button onClick={() => fetchDriveFiles(driveToken)} className="text-xs text-blue-600 hover:underline">Atualizar</button>
+                  </div>
+                  
+                  {isDriveLoading ? (
+                    <div className="text-center py-8 text-slate-500 text-sm">Carregando arquivos...</div>
+                  ) : driveFiles.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-sm">Nenhum PDF ou imagem encontrado.</div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-lg">
+                      {driveFiles.map(file => (
+                        <button
+                          key={file.id}
+                          onClick={() => handleDriveFileSelect(file.id)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3"
+                        >
+                          {file.thumbnailLink ? (
+                            <img src={file.thumbnailLink} alt="" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center text-slate-400">
+                              <FileText size={16} />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-slate-900 truncate">{file.name}</div>
+                            <div className="text-xs text-slate-500 truncate">ID: {file.id}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
@@ -219,6 +384,12 @@ export default function App() {
                   {isOcrLoading ? "Processando..." : "Ler Datasheet (OCR)"}
                   <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
                 </label>
+                <button 
+                  onClick={() => setShowDriveModal('inverter')}
+                  className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors border border-blue-100 ml-2"
+                >
+                  <Database size={14} /> Drive
+                </button>
               </div>
               
               {ocrError && (
@@ -272,6 +443,12 @@ export default function App() {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => setShowDriveModal('module')}
+                     className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors border border-blue-100 mr-2"
+                   >
+                     <Database size={14} /> Drive
+                   </button>
                    <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-100 whitespace-nowrap">
                       <Camera size={14} />
                       {isModuleOcrLoading ? "Lendo..." : "Ler Datasheet"}

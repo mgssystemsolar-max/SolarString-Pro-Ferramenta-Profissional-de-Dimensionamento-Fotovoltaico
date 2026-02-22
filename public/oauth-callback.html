@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OAuth Callback</title>
+</head>
+<body>
+  <script>
+    // Parse hash parameters (for implicit flow)
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const error = params.get('error');
+
+    if (window.opener) {
+      if (accessToken) {
+        window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', accessToken }, '*');
+      } else {
+        window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error }, '*');
+      }
+      window.close();
+    } else {
+      document.body.innerText = "Authentication complete. You can close this window.";
+    }
+  </script>
+</body>
+</html>

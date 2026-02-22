@@ -134,6 +134,19 @@ export default function App() {
     }
   };
 
+  const getFieldStatus = (field: string): 'default' | 'error' | 'warning' => {
+    if (!result?.highlightFields.includes(field)) return 'default';
+    // If it's clipping (current), it's a warning. If it's voltage/compatibility, it's an error.
+    // We can infer this from the warnings list or just hardcode logic.
+    // For simplicity: if field is current related and result is compatible (but with warnings), it's warning.
+    // If result is incompatible, it's error.
+    
+    if (field.includes('Current') || field.includes('imp')) {
+        return result.isCompatible ? 'warning' : 'error';
+    }
+    return 'error';
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-amber-100 selection:text-amber-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -198,24 +211,28 @@ export default function App() {
                   value={inverter.maxInputVoltage} 
                   onChange={(v) => setInverter({...inverter, maxInputVoltage: v})} 
                   unit="V" 
+                  status={getFieldStatus('inverter.maxInputVoltage')}
                 />
                 <InputGroup 
                   label="Corrente Máxima Entrada" 
                   value={inverter.maxInputCurrent} 
                   onChange={(v) => setInverter({...inverter, maxInputCurrent: v})} 
                   unit="A" 
+                  status={getFieldStatus('inverter.maxInputCurrent')}
                 />
                 <InputGroup 
                   label="MPPT Mínimo" 
                   value={inverter.minMpptVoltage} 
                   onChange={(v) => setInverter({...inverter, minMpptVoltage: v})} 
                   unit="V" 
+                  status={getFieldStatus('inverter.minMpptVoltage')}
                 />
                 <InputGroup 
                   label="MPPT Máximo" 
                   value={inverter.maxMpptVoltage} 
                   onChange={(v) => setInverter({...inverter, maxMpptVoltage: v})} 
                   unit="V" 
+                  status={getFieldStatus('inverter.maxMpptVoltage')}
                 />
               </div>
             </motion.section>
@@ -286,30 +303,35 @@ export default function App() {
                   value={module.power} 
                   onChange={(v) => setModule({...module, power: v})} 
                   unit="W" 
+                  status={getFieldStatus('module.power')}
                 />
                 <InputGroup 
                   label="Voc (STC)" 
                   value={module.voc} 
                   onChange={(v) => setModule({...module, voc: v})} 
                   unit="V" 
+                  status={getFieldStatus('module.voc')}
                 />
                 <InputGroup 
                   label="Vmp (STC)" 
                   value={module.vmp} 
                   onChange={(v) => setModule({...module, vmp: v})} 
                   unit="V" 
+                  status={getFieldStatus('module.vmp')}
                 />
                 <InputGroup 
                   label="Isc (STC)" 
                   value={module.isc} 
                   onChange={(v) => setModule({...module, isc: v})} 
                   unit="A" 
+                  status={getFieldStatus('module.isc')}
                 />
                 <InputGroup 
                   label="Imp (STC)" 
                   value={module.imp} 
                   onChange={(v) => setModule({...module, imp: v})} 
                   unit="A" 
+                  status={getFieldStatus('module.imp')}
                 />
                 <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 mt-2">
                   <InputGroup 
@@ -318,6 +340,7 @@ export default function App() {
                     onChange={(v) => setModule({...module, tempCoeffVoc: v})} 
                     unit="%/°C" 
                     step={0.01}
+                    status={getFieldStatus('module.tempCoeffVoc')}
                   />
                   <InputGroup 
                     label="Coef. Temp. Vmp" 
@@ -325,6 +348,7 @@ export default function App() {
                     onChange={(v) => setModule({...module, tempCoeffVmp: v})} 
                     unit="%/°C" 
                     step={0.01}
+                    status={getFieldStatus('module.tempCoeffVmp')}
                   />
                 </div>
               </div>
@@ -347,12 +371,14 @@ export default function App() {
                   value={site.minTemp} 
                   onChange={(v) => setSite({...site, minTemp: v})} 
                   unit="°C" 
+                  status={getFieldStatus('site.minTemp')}
                 />
                 <InputGroup 
                   label="Temperatura Máxima" 
                   value={site.maxTemp} 
                   onChange={(v) => setSite({...site, maxTemp: v})} 
                   unit="°C" 
+                  status={getFieldStatus('site.maxTemp')}
                 />
               </div>
             </motion.section>

@@ -28,6 +28,7 @@ export interface SizingResult {
   vmpMin: number; // Vmp at max temp
   isCompatible: boolean;
   warnings: string[];
+  highlightFields: string[];
 }
 
 export function calculateStringSizing(
@@ -36,6 +37,7 @@ export function calculateStringSizing(
   site: SiteConditions
 ): SizingResult {
   const warnings: string[] = [];
+  const highlightFields: string[] = [];
 
   // 1. Calculate Temperature Corrected Voltages
   // Formula: V_new = V_stc * (1 + (T_new - 25) * (Coeff / 100))
@@ -53,14 +55,17 @@ export function calculateStringSizing(
   // 3. Validation
   if (vocMax > inverter.maxInputVoltage) {
     warnings.push("A tensão de circuito aberto (Voc) de um único módulo excede a entrada máxima do inversor em baixa temperatura!");
+    highlightFields.push("module.voc", "site.minTemp", "inverter.maxInputVoltage");
   }
 
   if (minModules > maxModules) {
     warnings.push("Incompatível: O número mínimo de módulos excede o máximo permitido.");
+    highlightFields.push("inverter.minMpptVoltage", "inverter.maxInputVoltage", "module.voc", "module.vmp");
   }
 
   if (module.imp > inverter.maxInputCurrent) {
     warnings.push(`Atenção: A corrente do módulo (${module.imp}A) excede a corrente máxima do inversor (${inverter.maxInputCurrent}A). O inversor irá limitar a potência (clipping).`);
+    highlightFields.push("module.imp", "inverter.maxInputCurrent");
   }
 
   return {
@@ -69,6 +74,7 @@ export function calculateStringSizing(
     vocMax,
     vmpMin,
     isCompatible: warnings.length === 0 || (warnings.length === 1 && warnings[0].includes("clipping")), // Clipping is often acceptable design
-    warnings
+    warnings,
+    highlightFields
   };
 }

@@ -1,5 +1,6 @@
 
 export interface ModuleSpecs {
+  model?: string; // Model Name
   power: number; // Watts
   voc: number; // Volts
   vmp: number; // Volts
@@ -10,6 +11,7 @@ export interface ModuleSpecs {
 }
 
 export interface InverterSpecs {
+  model?: string; // Model Name
   maxInputVoltage: number; // Volts
   minMpptVoltage: number; // Volts
   maxMpptVoltage: number; // Volts

@@ -80,7 +80,7 @@ export function generatePDF(
   doc.setFont("helvetica", "bold");
   doc.text("Módulo Fotovoltaico:", margin, y);
   y += 6;
-  row("Modelo:", moduleName);
+  row("Modelo:", module.model || moduleName);
   y += 6;
   row("Potência (Pmax):", `${module.power} W`);
   row("Voc (STC):", `${module.voc} V`, 90);
@@ -94,6 +94,8 @@ export function generatePDF(
   // Inverter
   doc.setFont("helvetica", "bold");
   doc.text("Inversor:", margin, y);
+  y += 6;
+  row("Modelo:", inverter.model || "Não especificado");
   y += 6;
   row("Tensão Máx. Entrada:", `${inverter.maxInputVoltage} V`);
   row("Faixa MPPT:", `${inverter.minMpptVoltage} V - ${inverter.maxMpptVoltage} V`, 90);

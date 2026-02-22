@@ -169,6 +169,7 @@ export default function App() {
   const handlePresetSelect = (preset: ModulePreset) => {
     setSelectedPreset(preset.name);
     setModule({
+      model: preset.name,
       power: preset.power,
       voc: preset.voc,
       vmp: preset.vmp,
@@ -479,6 +480,16 @@ export default function App() {
               )}
 
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modelo do Inversor</label>
+                  <input 
+                    type="text" 
+                    value={inverter.model || ""} 
+                    onChange={(e) => setInverter({...inverter, model: e.target.value})}
+                    placeholder="Ex: Huawei SUN2000-100KTL"
+                    className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                  />
+                </div>
                 <InputGroup 
                   label="Tensão Máxima Entrada" 
                   value={inverter.maxInputVoltage} 
@@ -591,6 +602,19 @@ export default function App() {
                 </div>
               )}
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modelo do Módulo</label>
+                  <input 
+                    type="text" 
+                    value={selectedPreset || module.model || ""} 
+                    onChange={(e) => {
+                      setSelectedPreset(e.target.value);
+                      setModule({...module, model: e.target.value});
+                    }}
+                    placeholder="Ex: Canadian Solar CS7N-660MS"
+                    className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                  />
+                </div>
                 <InputGroup 
                   label="Potência (Pmax)" 
                   value={module.power} 

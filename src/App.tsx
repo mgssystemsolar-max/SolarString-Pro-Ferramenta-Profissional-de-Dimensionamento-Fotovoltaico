@@ -245,16 +245,9 @@ export default function App() {
   };
 
   const getFieldStatus = (field: string): 'default' | 'error' | 'warning' => {
-    if (!result?.highlightFields.includes(field)) return 'default';
-    // If it's clipping (current), it's a warning. If it's voltage/compatibility, it's an error.
-    // We can infer this from the warnings list or just hardcode logic.
-    // For simplicity: if field is current related and result is compatible (but with warnings), it's warning.
-    // If result is incompatible, it's error.
-    
-    if (field.includes('Current') || field.includes('imp')) {
-        return result.isCompatible ? 'warning' : 'error';
-    }
-    return 'error';
+    if (result?.errorFields?.includes(field)) return 'error';
+    if (result?.warningFields?.includes(field)) return 'warning';
+    return 'default';
   };
 
   const handleLogin = (email: string) => {

@@ -5,7 +5,7 @@ import { InputGroup } from './components/InputGroup';
 import { Diagram } from './components/Diagram';
 import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, SizingResult } from './utils/solar';
 import { MODULE_PRESETS, ModulePreset } from './utils/presets';
-import { extractInverterData } from './utils/ocr';
+import { extractInverterData, extractModuleData } from './utils/ocr';
 import { generatePDF } from './utils/pdf';
 
 interface HistoryItem {
@@ -44,7 +44,9 @@ export default function App() {
 
   const [result, setResult] = useState<SizingResult | null>(null);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isModuleOcrLoading, setIsModuleOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  const [moduleOcrError, setModuleOcrError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   // Load history on mount
@@ -106,6 +108,26 @@ export default function App() {
         console.error(err);
       } finally {
         setIsOcrLoading(false);
+      }
+    }
+  };
+
+  const handleModuleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setIsModuleOcrLoading(true);
+      setModuleOcrError(null);
+      try {
+        const data = await extractModuleData(e.target.files[0]);
+        setModule(prev => ({
+          ...prev,
+          ...data
+        }));
+        setSelectedPreset("Módulo OCR (Lido)");
+      } catch (err) {
+        setModuleOcrError("Falha ao ler imagem. Tente novamente com uma imagem mais clara.");
+        console.error(err);
+      } finally {
+        setIsModuleOcrLoading(false);
       }
     }
   };
@@ -243,60 +265,74 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible relative z-20"
             >
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Zap className="text-amber-500" size={18} />
                   <h2 className="font-semibold text-slate-900">Módulo Fotovoltaico</h2>
                 </div>
                 
-                <div className="relative">
-                   <button 
-                     onClick={() => setIsSearchOpen(!isSearchOpen)}
-                     className="flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-100"
-                   >
-                     <Database size={14} />
-                     {selectedPreset ? "Alterar Módulo" : "Buscar no Banco de Dados"}
-                   </button>
+                <div className="flex items-center gap-2">
+                   <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-100 whitespace-nowrap">
+                      <Camera size={14} />
+                      {isModuleOcrLoading ? "Lendo..." : "Ler Datasheet"}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleModuleFileUpload} disabled={isModuleOcrLoading} />
+                   </label>
 
-                   {isSearchOpen && (
-                     <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-                       <div className="p-2 border-b border-slate-100 bg-slate-50">
-                         <div className="relative">
-                           <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
-                           <input 
-                             type="text" 
-                             placeholder="Buscar modelo, fabricante..." 
-                             className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
-                             value={searchTerm}
-                             onChange={(e) => setSearchTerm(e.target.value)}
-                             autoFocus
-                           />
+                   <div className="relative">
+                     <button 
+                       onClick={() => setIsSearchOpen(!isSearchOpen)}
+                       className="flex items-center gap-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-full transition-colors border border-slate-200 whitespace-nowrap"
+                     >
+                       <Database size={14} />
+                       {selectedPreset ? "Alterar" : "Buscar"}
+                     </button>
+
+                     {isSearchOpen && (
+                       <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                         <div className="p-2 border-b border-slate-100 bg-slate-50">
+                           <div className="relative">
+                             <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                             <input 
+                               type="text" 
+                               placeholder="Buscar modelo, fabricante..." 
+                               className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
+                               value={searchTerm}
+                               onChange={(e) => setSearchTerm(e.target.value)}
+                               autoFocus
+                             />
+                           </div>
+                         </div>
+                         <div className="max-h-60 overflow-y-auto">
+                           {filteredPresets.length === 0 ? (
+                             <div className="p-4 text-center text-xs text-slate-500">Nenhum módulo encontrado</div>
+                           ) : (
+                             filteredPresets.map(p => (
+                               <button
+                                 key={p.name}
+                                 onClick={() => handlePresetSelect(p)}
+                                 className="w-full text-left px-4 py-2.5 hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0"
+                               >
+                                 <div className="font-medium text-sm text-slate-900">{p.name}</div>
+                                 <div className="text-xs text-slate-500 flex gap-2 mt-0.5">
+                                   <span>{p.power}W</span>
+                                   <span>Voc: {p.voc}V</span>
+                                   <span>Imp: {p.imp}A</span>
+                                 </div>
+                               </button>
+                             ))
+                           )}
                          </div>
                        </div>
-                       <div className="max-h-60 overflow-y-auto">
-                         {filteredPresets.length === 0 ? (
-                           <div className="p-4 text-center text-xs text-slate-500">Nenhum módulo encontrado</div>
-                         ) : (
-                           filteredPresets.map(p => (
-                             <button
-                               key={p.name}
-                               onClick={() => handlePresetSelect(p)}
-                               className="w-full text-left px-4 py-2.5 hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0"
-                             >
-                               <div className="font-medium text-sm text-slate-900">{p.name}</div>
-                               <div className="text-xs text-slate-500 flex gap-2 mt-0.5">
-                                 <span>{p.power}W</span>
-                                 <span>Voc: {p.voc}V</span>
-                                 <span>Imp: {p.imp}A</span>
-                               </div>
-                             </button>
-                           ))
-                         )}
-                       </div>
-                     </div>
-                   )}
+                     )}
+                  </div>
                 </div>
               </div>
+
+              {moduleOcrError && (
+                <div className="px-6 py-2 bg-red-50 text-red-600 text-xs border-b border-red-100 flex items-center gap-2">
+                  <AlertTriangle size={12} /> {moduleOcrError}
+                </div>
+              )}
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputGroup 
                   label="Potência (Pmax)" 

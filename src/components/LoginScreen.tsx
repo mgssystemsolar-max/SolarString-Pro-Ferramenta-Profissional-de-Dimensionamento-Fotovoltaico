@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sun, ArrowRight, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -12,10 +12,32 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberPassword, setRememberPassword] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('solar_saved_email');
+    const savedPass = localStorage.getItem('solar_saved_pass');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      if (savedPass) {
+        setPassword(savedPass);
+        setRememberPassword(true);
+      }
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    if (rememberPassword) {
+      localStorage.setItem('solar_saved_email', email);
+      localStorage.setItem('solar_saved_pass', password); // Note: In production, never store passwords in localStorage
+    } else {
+      localStorage.removeItem('solar_saved_email');
+      localStorage.removeItem('solar_saved_pass');
+    }
+
     // Simulate login/register delay
     setTimeout(() => {
       onLogin(email);
@@ -87,7 +109,17 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             {!isRegistering && (
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberPassword}
+                    onChange={(e) => setRememberPassword(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-slate-600">Salvar senha</span>
+                </label>
+
                 <button 
                   type="button" 
                   onClick={handleForgotPassword}

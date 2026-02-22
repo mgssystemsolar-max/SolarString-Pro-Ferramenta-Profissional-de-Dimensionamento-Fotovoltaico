@@ -8,6 +8,7 @@ import { MODULE_PRESETS, ModulePreset } from './utils/presets';
 import { extractInverterData, extractModuleData } from './utils/ocr';
 import { generatePDF } from './utils/pdf';
 import { initiateGoogleAuth, searchDriveFiles, downloadDriveFile, DriveFile } from './utils/drive';
+import { LoginScreen } from './components/LoginScreen';
 
 interface HistoryItem {
   id: string;
@@ -17,6 +18,9 @@ interface HistoryItem {
 }
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
   const [module, setModule] = useState<ModuleSpecs>({
     power: 550,
     voc: 49.6,
@@ -252,6 +256,17 @@ export default function App() {
     }
     return 'error';
   };
+
+  const handleLogin = (email: string) => {
+    setUserEmail(email);
+    setIsLoggedIn(true);
+    // If user provides email here, we can use it as hint for Google Auth later
+    setGoogleEmail(email);
+  };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-amber-100 selection:text-amber-900">

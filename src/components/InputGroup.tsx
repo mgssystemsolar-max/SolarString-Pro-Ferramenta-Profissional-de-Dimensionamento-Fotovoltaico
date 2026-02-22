@@ -1,0 +1,77 @@
+
+import React, { useState, useEffect } from 'react';
+
+interface InputGroupProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  unit?: string;
+  step?: number;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+  type?: string;
+}
+
+export function InputGroup({
+  label,
+  value,
+  onChange,
+  unit,
+  step = 0.1,
+  min,
+  max,
+  placeholder,
+  type = "number"
+}: InputGroupProps) {
+  const [localValue, setLocalValue] = useState(value.toString());
+
+  useEffect(() => {
+    // Sync local value with prop value only if they are numerically different
+    // This prevents the "decimal point vanishing" issue while typing (e.g. "5." -> "5")
+    const parsedLocal = parseFloat(localValue);
+    if (parsedLocal !== value && !(Number.isNaN(parsedLocal) && value === 0)) {
+       setLocalValue(value.toString());
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+    
+    // Allow empty string or minus sign without triggering 0 update immediately if desired,
+    // but for live calculation we might need a value.
+    // Here we parse and update if valid number.
+    const num = parseFloat(newVal);
+    if (!isNaN(num)) {
+      onChange(num);
+    } else if (newVal === '') {
+      onChange(0);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          type={type}
+          value={localValue}
+          onChange={handleChange}
+          step={step}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-400"
+        />
+        {unit && (
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+            <span className="text-xs text-slate-500 dark:text-slate-400">{unit}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

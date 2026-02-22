@@ -148,8 +148,8 @@ export function generatePDF(
   doc.setFillColor(230);
   doc.rect(margin, y, 85, 8, 'F');
   doc.rect(margin + 85, y, 85, 8, 'F');
-  doc.text("Mínimo de Módulos", margin + 5, y + 5.5);
-  doc.text("Máximo de Módulos", margin + 90, y + 5.5);
+  doc.text(`Mínimo de Módulos (por MPPT)`, margin + 5, y + 5.5);
+  doc.text(`Máximo de Módulos (por MPPT)`, margin + 90, y + 5.5);
   y += 8;
 
   // Table Content
@@ -159,7 +159,15 @@ export function generatePDF(
   doc.text(`${result.minModules}`, margin + 42, y + 8, { align: "center" });
   doc.text(`${result.maxModules}`, margin + 127, y + 8, { align: "center" });
   doc.setFontSize(10);
-  y += 20;
+  y += 15;
+
+  if (inverter.numMppts) {
+    doc.setFont("helvetica", "normal");
+    doc.text(`Número de MPPTs (Entradas) do Inversor: ${inverter.numMppts}`, margin, y);
+    y += 10;
+  } else {
+    y += 5;
+  }
 
   // --- Section 4: Conclusão ---
   sectionTitle("4. Conclusão e Parecer Técnico");

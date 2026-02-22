@@ -16,6 +16,7 @@ export interface InverterSpecs {
   minMpptVoltage: number; // Volts
   maxMpptVoltage: number; // Volts
   maxInputCurrent: number; // Amps
+  numMppts?: number; // Number of MPPTs
 }
 
 export interface SiteConditions {

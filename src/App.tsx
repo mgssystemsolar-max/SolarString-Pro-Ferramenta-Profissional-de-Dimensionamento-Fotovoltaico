@@ -518,6 +518,16 @@ export default function App() {
                   unit="V" 
                   status={getFieldStatus('inverter.maxMpptVoltage')}
                 />
+                <div className="sm:col-span-2">
+                  <InputGroup 
+                    label="Número de MPPTs (Entradas)" 
+                    value={inverter.numMppts || 1} 
+                    onChange={(v) => setInverter({...inverter, numMppts: v})} 
+                    unit="un" 
+                    step={1}
+                    min={1}
+                  />
+                </div>
               </div>
             </motion.section>
 
@@ -746,12 +756,12 @@ export default function App() {
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
                       <div className="text-sm text-slate-500 mb-1">Mínimo</div>
                       <div className="text-3xl font-bold text-slate-900">{result?.minModules}</div>
-                      <div className="text-xs text-slate-400 mt-1">módulos</div>
+                      <div className="text-xs text-slate-400 mt-1">módulos por MPPT</div>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
                       <div className="text-sm text-slate-500 mb-1">Máximo</div>
                       <div className="text-3xl font-bold text-slate-900">{result?.maxModules}</div>
-                      <div className="text-xs text-slate-400 mt-1">módulos</div>
+                      <div className="text-xs text-slate-400 mt-1">módulos por MPPT</div>
                     </div>
                   </div>
 

@@ -217,7 +217,7 @@ export default function App() {
                 <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors border border-indigo-100">
                   <Camera size={14} />
                   {isOcrLoading ? "Processando..." : "Ler Datasheet (OCR)"}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
+                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
                 </label>
               </div>
               
@@ -275,7 +275,7 @@ export default function App() {
                    <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-100 whitespace-nowrap">
                       <Camera size={14} />
                       {isModuleOcrLoading ? "Lendo..." : "Ler Datasheet"}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleModuleFileUpload} disabled={isModuleOcrLoading} />
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleModuleFileUpload} disabled={isModuleOcrLoading} />
                    </label>
 
                    <div className="relative">

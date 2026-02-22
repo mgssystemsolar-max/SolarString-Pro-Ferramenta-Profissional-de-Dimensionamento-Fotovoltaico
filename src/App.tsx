@@ -47,7 +47,12 @@ export default function App() {
     maxTemp: 40,
   });
 
-  const [result, setResult] = useState<SizingResult | null>(null);
+  // Optimize: Use useMemo instead of useEffect+useState for derived result
+  // This prevents double renders on every input change
+  const result = useMemo(() => {
+    return calculateStringSizing(module, inverter, site);
+  }, [module, inverter, site]);
+
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [isModuleOcrLoading, setIsModuleOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
@@ -152,11 +157,6 @@ export default function App() {
   // Save history when result changes (debounced or manual save? Let's do manual save or auto-add to list logic)
   // Actually, let's add a "Save Calculation" button or just auto-save valid results?
   // User request implies a history list. Let's add a manual "Save" button to keep it clean.
-
-  useEffect(() => {
-    const res = calculateStringSizing(module, inverter, site);
-    setResult(res);
-  }, [module, inverter, site]);
 
   const filteredPresets = useMemo(() => {
     if (!searchTerm) return MODULE_PRESETS;

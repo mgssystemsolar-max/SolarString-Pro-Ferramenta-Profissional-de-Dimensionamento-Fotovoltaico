@@ -1,23 +1,38 @@
-import { createWorker } from 'tesseract.js';
 import { InverterSpecs, ModuleSpecs } from './solar';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Set worker source
-// Note: We use a CDN for the worker to avoid complex build configuration in this environment.
-// We use a fixed version to ensure compatibility if the installed version varies.
-// Ideally this should match the installed version.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Singleton worker instance to avoid recreation overhead
+let tesseractWorker: any = null;
+let pdfjsLib: any = null;
+
+async function getTesseractWorker() {
+  if (tesseractWorker) return tesseractWorker;
+  
+  const Tesseract = await import('tesseract.js');
+  tesseractWorker = await Tesseract.createWorker('eng');
+  return tesseractWorker;
+}
+
+async function getPdfJs() {
+  if (pdfjsLib) return pdfjsLib;
+  
+  pdfjsLib = await import('pdfjs-dist');
+  // Set worker source using the version from the imported library
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  
+  return pdfjsLib;
+}
 
 async function convertPdfToImages(file: File): Promise<string[]> {
+  const pdf = await getPdfJs();
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdfDoc = await pdf.getDocument({ data: arrayBuffer }).promise;
   const images: string[] = [];
 
   // Process first 2 pages max (datasheets usually have specs early)
-  const numPages = Math.min(pdf.numPages, 2);
+  const numPages = Math.min(pdfDoc.numPages, 2);
 
   for (let i = 1; i <= numPages; i++) {
-    const page = await pdf.getPage(i);
+    const page = await pdfDoc.getPage(i);
     const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -33,7 +48,8 @@ async function convertPdfToImages(file: File): Promise<string[]> {
 }
 
 async function extractText(file: File): Promise<string> {
-  const worker = await createWorker('eng');
+  const worker = await getTesseractWorker();
+  
   try {
     if (file.type === 'application/pdf') {
       const images = await convertPdfToImages(file);
@@ -48,9 +64,11 @@ async function extractText(file: File): Promise<string> {
       const { data: { text } } = await worker.recognize(file);
       return text;
     }
-  } finally {
-    await worker.terminate();
+  } catch (error) {
+    console.error("OCR Error:", error);
+    throw error;
   }
+  // Do not terminate worker here, reuse it for next time
 }
 
 export async function extractInverterData(file: File): Promise<Partial<InverterSpecs>> {
@@ -116,9 +134,6 @@ export async function extractModuleData(file: File): Promise<Partial<ModuleSpecs
   if (iscMatch) specs.isc = parseValue(iscMatch);
   if (impMatch) specs.imp = parseValue(impMatch);
   if (tempVocMatch) specs.tempCoeffVoc = parseValue(tempVocMatch);
-  // Note: Temp Coeff Vmp is rarely explicitly listed as "Vmp", often "Pmax" or "Voc" are the main ones. 
-  // Sometimes it is listed. Let's assume Pmax coeff is close enough or use a default if not found.
-  // Actually, let's look for "Temperature Coefficient of Vmp" specifically or just leave undefined to let user fill/default.
   
   return specs;
 }

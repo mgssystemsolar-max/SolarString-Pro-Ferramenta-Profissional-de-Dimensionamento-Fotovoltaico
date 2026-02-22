@@ -38,10 +38,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       localStorage.removeItem('solar_saved_pass');
     }
 
-    // Simulate login/register delay
-    setTimeout(() => {
-      onLogin(email);
-    }, 800);
+    // Immediate login without artificial delay
+    onLogin(email);
   };
 
   const handleForgotPassword = () => {

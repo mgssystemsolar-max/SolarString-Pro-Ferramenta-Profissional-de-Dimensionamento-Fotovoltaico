@@ -6,7 +6,9 @@ export function generatePDF(
   module: ModuleSpecs,
   inverter: InverterSpecs,
   site: SiteConditions,
-  moduleName: string = "Custom Module"
+  moduleName: string = "Custom Module",
+  techName: string = "",
+  companyName: string = ""
 ) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -26,7 +28,7 @@ export function generatePDF(
   doc.setTextColor(50);
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("SolarString Pro", pageWidth - margin, y + 8, { align: "right" });
+  doc.text(companyName || "SolarString Pro", pageWidth - margin, y + 8, { align: "right" });
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
@@ -175,6 +177,7 @@ export function generatePDF(
     doc.setTextColor(50);
     doc.text("O arranjo proposto atende aos limites operacionais de tensão e corrente do inversor", margin + 10, y + 18);
     doc.text("nas condições de temperatura informadas.", margin + 10, y + 23);
+    y += 35;
   } else {
     doc.setFillColor(254, 242, 242); // Red-50
     doc.setDrawColor(220, 38, 38); // Red-600
@@ -194,6 +197,30 @@ export function generatePDF(
       doc.text(`• ${w}`, margin + 10, warnY);
       warnY += 5;
     });
+    y += 30 + (result.warnings.length * 5) + 10;
+  }
+
+  // --- Signatures ---
+  if (techName) {
+    y += 10;
+    // Check if we need a new page
+    if (y > pageHeight - 40) {
+      doc.addPage();
+      y = margin;
+    }
+    
+    doc.setDrawColor(0);
+    doc.line(margin, y, margin + 80, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0);
+    doc.text(techName, margin, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text("Responsável Técnico", margin, y + 10);
+    if (companyName) {
+      doc.text(companyName, margin, y + 15);
+    }
   }
 
   // --- Footer ---

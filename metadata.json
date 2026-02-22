@@ -1,5 +1,5 @@
 {
-  "name": "Dimensionamento Solar PV",
-  "description": "Calculadora de dimensionamento de strings fotovoltaicas (PV String Sizing)",
+  "name": "SolarString Pro",
+  "description": "Ferramenta Profissional de Dimensionamento Fotovoltaico com banco de dados de módulos e OCR de inversores.",
   "requestFramePermissions": []
 }

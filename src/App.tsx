@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings } from 'lucide-react';
+import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database } from 'lucide-react';
 import { InputGroup } from './components/InputGroup';
+import { Diagram } from './components/Diagram';
 import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, SizingResult } from './utils/solar';
+import { MODULE_PRESETS, ModulePreset } from './utils/presets';
+import { extractInverterData } from './utils/ocr';
+import { generatePDF } from './utils/pdf';
+
+interface HistoryItem {
+  id: string;
+  date: string;
+  moduleName: string;
+  result: SizingResult;
+}
 
 export default function App() {
   const [module, setModule] = useState<ModuleSpecs>({
@@ -14,6 +25,10 @@ export default function App() {
     tempCoeffVoc: -0.27,
     tempCoeffVmp: -0.35,
   });
+
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [inverter, setInverter] = useState<InverterSpecs>({
     maxInputVoltage: 1000,
@@ -28,26 +43,120 @@ export default function App() {
   });
 
   const [result, setResult] = useState<SizingResult | null>(null);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  // Load history on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('solarHistory');
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, []);
+
+  // Save history when result changes (debounced or manual save? Let's do manual save or auto-add to list logic)
+  // Actually, let's add a "Save Calculation" button or just auto-save valid results?
+  // User request implies a history list. Let's add a manual "Save" button to keep it clean.
 
   useEffect(() => {
     const res = calculateStringSizing(module, inverter, site);
     setResult(res);
   }, [module, inverter, site]);
 
+  const filteredPresets = useMemo(() => {
+    if (!searchTerm) return MODULE_PRESETS;
+    return MODULE_PRESETS.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.manufacturer.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
+
+  const handlePresetSelect = (preset: ModulePreset) => {
+    setSelectedPreset(preset.name);
+    setModule({
+      power: preset.power,
+      voc: preset.voc,
+      vmp: preset.vmp,
+      isc: preset.isc,
+      imp: preset.imp,
+      tempCoeffVoc: preset.tempCoeffVoc,
+      tempCoeffVmp: preset.tempCoeffVmp,
+    });
+    setIsSearchOpen(false);
+    setSearchTerm("");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setIsOcrLoading(true);
+      setOcrError(null);
+      try {
+        const data = await extractInverterData(e.target.files[0]);
+        setInverter(prev => ({
+          ...prev,
+          ...data
+        }));
+      } catch (err) {
+        setOcrError("Falha ao ler imagem. Tente novamente com uma imagem mais clara.");
+        console.error(err);
+      } finally {
+        setIsOcrLoading(false);
+      }
+    }
+  };
+
+  const saveToHistory = () => {
+    if (!result) return;
+    const newItem: HistoryItem = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString(),
+      moduleName: selectedPreset || "Módulo Personalizado",
+      result: result
+    };
+    const newHistory = [newItem, ...history].slice(0, 20); // Keep last 20
+    setHistory(newHistory);
+    localStorage.setItem('solarHistory', JSON.stringify(newHistory));
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('solarHistory');
+  };
+
+  const handleExportPDF = () => {
+    if (result) {
+      generatePDF(result, module, inverter, site, selectedPreset || "Módulo Personalizado");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-amber-100 selection:text-amber-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-amber-500 p-2 rounded-lg text-white">
+            <div className="bg-amber-500 p-2 rounded-lg text-white shadow-amber-200 shadow-md">
               <Sun size={20} strokeWidth={2.5} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Solar<span className="text-amber-600">Sizer</span>
-            </h1>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+                SolarString<span className="text-amber-600">Pro</span>
+              </h1>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Professional Tool</span>
+            </div>
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            Dimensionamento de String PV
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={handleExportPDF}
+               className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg"
+               disabled={!result}
+             >
+               <FileText size={18} /> Relatório PDF
+             </button>
           </div>
         </div>
       </header>
@@ -58,15 +167,118 @@ export default function App() {
           {/* INPUT SECTION */}
           <div className="lg:col-span-7 space-y-6">
             
-            {/* Module Specs */}
+            {/* Inverter Specs & OCR */}
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                <Zap className="text-amber-500" size={18} />
-                <h2 className="font-semibold text-slate-900">Especificações do Módulo</h2>
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="text-indigo-500" size={18} />
+                  <h2 className="font-semibold text-slate-900">Inversor</h2>
+                </div>
+                <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors border border-indigo-100">
+                  <Camera size={14} />
+                  {isOcrLoading ? "Processando..." : "Ler Datasheet (OCR)"}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
+                </label>
+              </div>
+              
+              {ocrError && (
+                <div className="px-6 py-2 bg-red-50 text-red-600 text-xs border-b border-red-100 flex items-center gap-2">
+                  <AlertTriangle size={12} /> {ocrError}
+                </div>
+              )}
+
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InputGroup 
+                  label="Tensão Máxima Entrada" 
+                  value={inverter.maxInputVoltage} 
+                  onChange={(v) => setInverter({...inverter, maxInputVoltage: v})} 
+                  unit="V" 
+                />
+                <InputGroup 
+                  label="Corrente Máxima Entrada" 
+                  value={inverter.maxInputCurrent} 
+                  onChange={(v) => setInverter({...inverter, maxInputCurrent: v})} 
+                  unit="A" 
+                />
+                <InputGroup 
+                  label="MPPT Mínimo" 
+                  value={inverter.minMpptVoltage} 
+                  onChange={(v) => setInverter({...inverter, minMpptVoltage: v})} 
+                  unit="V" 
+                />
+                <InputGroup 
+                  label="MPPT Máximo" 
+                  value={inverter.maxMpptVoltage} 
+                  onChange={(v) => setInverter({...inverter, maxMpptVoltage: v})} 
+                  unit="V" 
+                />
+              </div>
+            </motion.section>
+
+            {/* Module Specs with Database Search */}
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible relative z-20"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="text-amber-500" size={18} />
+                  <h2 className="font-semibold text-slate-900">Módulo Fotovoltaico</h2>
+                </div>
+                
+                <div className="relative">
+                   <button 
+                     onClick={() => setIsSearchOpen(!isSearchOpen)}
+                     className="flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-100"
+                   >
+                     <Database size={14} />
+                     {selectedPreset ? "Alterar Módulo" : "Buscar no Banco de Dados"}
+                   </button>
+
+                   {isSearchOpen && (
+                     <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                       <div className="p-2 border-b border-slate-100 bg-slate-50">
+                         <div className="relative">
+                           <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                           <input 
+                             type="text" 
+                             placeholder="Buscar modelo, fabricante..." 
+                             className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
+                             value={searchTerm}
+                             onChange={(e) => setSearchTerm(e.target.value)}
+                             autoFocus
+                           />
+                         </div>
+                       </div>
+                       <div className="max-h-60 overflow-y-auto">
+                         {filteredPresets.length === 0 ? (
+                           <div className="p-4 text-center text-xs text-slate-500">Nenhum módulo encontrado</div>
+                         ) : (
+                           filteredPresets.map(p => (
+                             <button
+                               key={p.name}
+                               onClick={() => handlePresetSelect(p)}
+                               className="w-full text-left px-4 py-2.5 hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0"
+                             >
+                               <div className="font-medium text-sm text-slate-900">{p.name}</div>
+                               <div className="text-xs text-slate-500 flex gap-2 mt-0.5">
+                                 <span>{p.power}W</span>
+                                 <span>Voc: {p.voc}V</span>
+                                 <span>Imp: {p.imp}A</span>
+                               </div>
+                             </button>
+                           ))
+                         )}
+                       </div>
+                     </div>
+                   )}
+                </div>
               </div>
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputGroup 
@@ -118,45 +330,6 @@ export default function App() {
               </div>
             </motion.section>
 
-            {/* Inverter Specs */}
-            <motion.section 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                <Settings className="text-indigo-500" size={18} />
-                <h2 className="font-semibold text-slate-900">Especificações do Inversor</h2>
-              </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputGroup 
-                  label="Tensão Máxima Entrada" 
-                  value={inverter.maxInputVoltage} 
-                  onChange={(v) => setInverter({...inverter, maxInputVoltage: v})} 
-                  unit="V" 
-                />
-                <InputGroup 
-                  label="Corrente Máxima Entrada" 
-                  value={inverter.maxInputCurrent} 
-                  onChange={(v) => setInverter({...inverter, maxInputCurrent: v})} 
-                  unit="A" 
-                />
-                <InputGroup 
-                  label="MPPT Mínimo" 
-                  value={inverter.minMpptVoltage} 
-                  onChange={(v) => setInverter({...inverter, minMpptVoltage: v})} 
-                  unit="V" 
-                />
-                <InputGroup 
-                  label="MPPT Máximo" 
-                  value={inverter.maxMpptVoltage} 
-                  onChange={(v) => setInverter({...inverter, maxMpptVoltage: v})} 
-                  unit="V" 
-                />
-              </div>
-            </motion.section>
-
             {/* Site Conditions */}
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
@@ -196,26 +369,46 @@ export default function App() {
               {/* Main Result Card */}
               <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                 <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-                  <h2 className="font-semibold text-lg">Resultado do Dimensionamento</h2>
-                  {result?.isCompatible ? (
-                    <CheckCircle className="text-emerald-400" />
-                  ) : (
-                    <AlertTriangle className="text-amber-400" />
-                  )}
+                  <h2 className="font-semibold text-lg">Resultado</h2>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={saveToHistory}
+                      className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-300 hover:text-white"
+                      title="Salvar no Histórico"
+                    >
+                      <Download size={18} />
+                    </button>
+                    {result?.isCompatible ? (
+                      <CheckCircle className="text-emerald-400" />
+                    ) : (
+                      <AlertTriangle className="text-amber-400" />
+                    )}
+                  </div>
                 </div>
                 
                 <div className="p-6 space-y-6">
+                  {/* Diagram */}
+                  {result && (
+                    <Diagram 
+                      minModules={result.minModules} 
+                      maxModules={result.maxModules} 
+                      inverterMaxVoltage={inverter.maxInputVoltage}
+                      inverterMpptMin={inverter.minMpptVoltage}
+                      inverterMpptMax={inverter.maxMpptVoltage}
+                    />
+                  )}
+
                   {/* Min/Max Modules */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
-                      <div className="text-sm text-slate-500 mb-1">Mínimo de Módulos</div>
+                      <div className="text-sm text-slate-500 mb-1">Mínimo</div>
                       <div className="text-3xl font-bold text-slate-900">{result?.minModules}</div>
-                      <div className="text-xs text-slate-400 mt-1">por string</div>
+                      <div className="text-xs text-slate-400 mt-1">módulos</div>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
-                      <div className="text-sm text-slate-500 mb-1">Máximo de Módulos</div>
+                      <div className="text-sm text-slate-500 mb-1">Máximo</div>
                       <div className="text-3xl font-bold text-slate-900">{result?.maxModules}</div>
-                      <div className="text-xs text-slate-400 mt-1">por string</div>
+                      <div className="text-xs text-slate-400 mt-1">módulos</div>
                     </div>
                   </div>
 
@@ -253,23 +446,40 @@ export default function App() {
                       </ul>
                     </div>
                   )}
-
-                  {/* Success Message */}
-                  {result?.isCompatible && (!result.warnings || result.warnings.length === 0) && (
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="text-emerald-600 mt-0.5" size={18} />
-                        <div>
-                          <h3 className="text-sm font-semibold text-emerald-800">Configuração Válida</h3>
-                          <p className="text-sm text-emerald-700 mt-1">
-                            O inversor e os módulos são compatíveis dentro da faixa de temperatura especificada.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* History Section */}
+              {history.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <History className="text-slate-500" size={18} />
+                      <h2 className="font-semibold text-slate-900">Histórico</h2>
+                    </div>
+                    <button onClick={clearHistory} className="text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                    {history.map((item) => (
+                      <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-sm text-slate-900">{item.moduleName}</span>
+                          <span className="text-xs text-slate-400">{item.date}</span>
+                        </div>
+                        <div className="text-xs text-slate-600 flex gap-3">
+                          <span>Min: <b>{item.result.minModules}</b></span>
+                          <span>Max: <b>{item.result.maxModules}</b></span>
+                          <span className={item.result.isCompatible ? "text-emerald-600" : "text-amber-600"}>
+                            {item.result.isCompatible ? "Compatível" : "Atenção"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         </div>

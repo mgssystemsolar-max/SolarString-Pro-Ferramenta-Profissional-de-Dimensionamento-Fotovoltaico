@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, ArrowRight, CheckCircle, Shield, Mail, Lock } from 'lucide-react';
+import { Sun, ArrowRight, CheckCircle, Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -13,6 +13,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -197,13 +198,20 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                     <Lock size={18} className="text-slate-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                    className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
             )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User, ImageIcon } from 'lucide-react';
+import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User, ImageIcon, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { InputGroup } from './components/InputGroup';
 import { Diagram } from './components/Diagram';
 import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, SizingResult } from './utils/solar';
@@ -41,6 +41,8 @@ export default function App() {
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [moduleDiscrepancies, setModuleDiscrepancies] = useState<string[]>([]);
+  const [compareMessage, setCompareMessage] = useState<{type: 'success'|'warning'|'error', text: string} | null>(null);
 
   const [inverter, setInverter] = useState<InverterSpecs>({
     maxInputVoltage: 1000,
@@ -257,6 +259,48 @@ export default function App() {
     });
     setIsSearchOpen(false);
     setSearchTerm("");
+    setModuleDiscrepancies([]);
+    setCompareMessage(null);
+  };
+
+  const compareModuleData = () => {
+    // Find preset by selected name or current model name
+    const preset = MODULE_PRESETS.find(p => p.name === selectedPreset || p.name === module.model);
+    if (!preset) {
+      setCompareMessage({ type: 'error', text: "Nenhum preset selecionado ou encontrado para comparação." });
+      setModuleDiscrepancies([]);
+      return;
+    }
+
+    const discrepancies: string[] = [];
+    const threshold = 0.05; // 5%
+
+    const checkDiscrepancy = (field: keyof ModuleSpecs, presetValue: number) => {
+      const currentValue = module[field] as number;
+      if (currentValue === undefined || presetValue === undefined) return;
+      
+      const diff = Math.abs(currentValue - presetValue);
+      const percentDiff = diff / Math.abs(presetValue);
+      
+      if (percentDiff > threshold) {
+        discrepancies.push(`module.${field}`);
+      }
+    };
+
+    checkDiscrepancy('power', preset.power);
+    checkDiscrepancy('voc', preset.voc);
+    checkDiscrepancy('vmp', preset.vmp);
+    checkDiscrepancy('isc', preset.isc);
+    checkDiscrepancy('imp', preset.imp);
+    checkDiscrepancy('tempCoeffVoc', preset.tempCoeffVoc);
+    checkDiscrepancy('tempCoeffVmp', preset.tempCoeffVmp);
+
+    setModuleDiscrepancies(discrepancies);
+    if (discrepancies.length > 0) {
+      setCompareMessage({ type: 'warning', text: `Atenção: ${discrepancies.length} campo(s) com mais de 5% de diferença do preset original.` });
+    } else {
+      setCompareMessage({ type: 'success', text: "Os dados estão consistentes com o preset original." });
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +334,8 @@ export default function App() {
           ...data
         }));
         setSelectedPreset("Módulo OCR (Lido)");
+        setModuleDiscrepancies([]);
+        setCompareMessage(null);
       } catch (err) {
         setModuleOcrError("Falha ao ler imagem. Tente novamente com uma imagem mais clara.");
         console.error(err);
@@ -369,6 +415,7 @@ export default function App() {
   const getFieldStatus = (field: string): 'default' | 'error' | 'warning' => {
     if (result?.errorFields?.includes(field)) return 'error';
     if (result?.warningFields?.includes(field)) return 'warning';
+    if (moduleDiscrepancies.includes(field)) return 'warning';
     return 'default';
   };
 
@@ -543,6 +590,8 @@ export default function App() {
                           if (item.projectDetails) setProjectDetails(item.projectDetails);
                           setSelectedPreset(item.moduleName);
                           setSelectedInverterPreset(item.inverterName || "");
+                          setModuleDiscrepancies([]);
+                          setCompareMessage(null);
                           setCurrentView('sizing');
                         }}
                         className="ml-4 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-medium transition-colors"
@@ -681,6 +730,15 @@ export default function App() {
                   unit="V" 
                   status={getFieldStatus('inverter.maxInputVoltage')}
                 />
+                <div className="flex flex-col justify-center">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tensão Máx. Exibição</label>
+                  <input 
+                    type="text" 
+                    value={`${inverter.maxInputVoltage} V`} 
+                    readOnly
+                    className="w-full mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 shadow-sm focus:outline-none cursor-not-allowed"
+                  />
+                </div>
                 <InputGroup 
                   label="Corrente Máxima Entrada" 
                   value={inverter.maxInputCurrent} 
@@ -798,16 +856,37 @@ export default function App() {
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modelo do Módulo</label>
-                  <input 
-                    type="text" 
-                    value={selectedPreset || module.model || ""} 
-                    onChange={(e) => {
-                      setSelectedPreset(e.target.value);
-                      setModule({...module, model: e.target.value});
-                    }}
-                    placeholder="Ex: Canadian Solar CS7N-660MS"
-                    className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={selectedPreset || module.model || ""} 
+                      onChange={(e) => {
+                        setSelectedPreset(e.target.value);
+                        setModule({...module, model: e.target.value});
+                        setModuleDiscrepancies([]);
+                        setCompareMessage(null);
+                      }}
+                      placeholder="Ex: Canadian Solar CS7N-660MS"
+                      className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                    />
+                    <button
+                      onClick={compareModuleData}
+                      className="mt-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2"
+                      title="Comparar com Preset Original"
+                    >
+                      <RefreshCw size={14} />
+                      <span className="hidden sm:inline">Comparar</span>
+                    </button>
+                  </div>
+                  {compareMessage && (
+                    <div className={`mt-2 text-xs flex items-center gap-1 ${
+                      compareMessage.type === 'success' ? 'text-emerald-600' : 
+                      compareMessage.type === 'warning' ? 'text-amber-600' : 'text-red-600'
+                    }`}>
+                      {compareMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                      {compareMessage.text}
+                    </div>
+                  )}
                 </div>
                 <InputGroup 
                   label="Potência (Pmax)" 

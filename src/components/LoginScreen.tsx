@@ -125,11 +125,21 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             {isLoading ? 'Conectando...' : 'Continuar com Google'}
           </button>
 
-          <div className="mt-12 text-center">
+          <div className="mt-12 text-center space-y-4">
             <p className="text-sm text-slate-500">
               Ao continuar, você concorda com nossos <br/>
               <a href="#" className="text-slate-900 font-medium hover:underline">Termos de Serviço</a> e <a href="#" className="text-slate-900 font-medium hover:underline">Política de Privacidade</a>.
             </p>
+            
+            <div className="pt-6 border-t border-slate-100">
+              <p className="text-sm text-slate-500 mb-1">Problemas para acessar?</p>
+              <p className="text-sm font-medium text-slate-700">
+                O login é feito exclusivamente com sua conta Google.
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                Suporte: <a href="mailto:mgssystemsolarclientes@gmail.com" className="text-amber-600 hover:underline">mgssystemsolarclientes@gmail.com</a>
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>

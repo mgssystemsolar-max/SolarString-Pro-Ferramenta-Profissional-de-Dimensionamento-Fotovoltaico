@@ -16,8 +16,8 @@ export function Diagram({ minModules, maxModules, inverterMaxVoltage, inverterMp
         <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">NÃO ESCALADO</span>
       </div>
       
-      <div className="w-full overflow-x-auto pb-4">
-        <svg viewBox="0 0 850 320" className="w-full h-auto min-w-[800px]" style={{ maxHeight: '400px' }}>
+      <div className="w-full overflow-x-auto pb-4 flex justify-center">
+        <svg viewBox="0 0 850 320" className="w-full h-auto max-w-[1000px] min-w-[600px]" style={{ maxHeight: '400px' }}>
           {/* Background Grid for technical feel */}
           <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">

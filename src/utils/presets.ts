@@ -1,9 +1,134 @@
-import { ModuleSpecs } from './solar';
+import { ModuleSpecs, InverterSpecs } from './solar';
 
 export interface ModulePreset extends ModuleSpecs {
   name: string;
   manufacturer: string;
 }
+
+export interface InverterPreset extends InverterSpecs {
+  name: string;
+  manufacturer: string;
+}
+
+export const INVERTER_PRESETS: InverterPreset[] = [
+  // GROWATT
+  {
+    manufacturer: "Growatt",
+    name: "Growatt MIN 5000TL-X",
+    maxInputVoltage: 550,
+    minMpptVoltage: 80,
+    maxMpptVoltage: 550,
+    maxInputCurrent: 13.5,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Growatt",
+    name: "Growatt MIN 8000TL-X",
+    maxInputVoltage: 600,
+    minMpptVoltage: 80,
+    maxMpptVoltage: 600,
+    maxInputCurrent: 13.5,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Growatt",
+    name: "Growatt MAC 50KTL3-X LV",
+    maxInputVoltage: 1100,
+    minMpptVoltage: 200,
+    maxMpptVoltage: 1000,
+    maxInputCurrent: 32,
+    numMppts: 3
+  },
+
+  // SUNGROW
+  {
+    manufacturer: "Sungrow",
+    name: "Sungrow SG5.0RS",
+    maxInputVoltage: 600,
+    minMpptVoltage: 40,
+    maxMpptVoltage: 560,
+    maxInputCurrent: 16,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Sungrow",
+    name: "Sungrow SG10RT",
+    maxInputVoltage: 1100,
+    minMpptVoltage: 160,
+    maxMpptVoltage: 1000,
+    maxInputCurrent: 25,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Sungrow",
+    name: "Sungrow SG110CX",
+    maxInputVoltage: 1100,
+    minMpptVoltage: 200,
+    maxMpptVoltage: 1000,
+    maxInputCurrent: 26,
+    numMppts: 9
+  },
+
+  // FRONIUS
+  {
+    manufacturer: "Fronius",
+    name: "Fronius Primo 5.0-1",
+    maxInputVoltage: 1000,
+    minMpptVoltage: 80,
+    maxMpptVoltage: 800,
+    maxInputCurrent: 18,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Fronius",
+    name: "Fronius Symo 15.0-3-M",
+    maxInputVoltage: 1000,
+    minMpptVoltage: 200,
+    maxMpptVoltage: 800,
+    maxInputCurrent: 27,
+    numMppts: 2
+  },
+
+  // WEG
+  {
+    manufacturer: "WEG",
+    name: "WEG SIW300H M050",
+    maxInputVoltage: 600,
+    minMpptVoltage: 90,
+    maxMpptVoltage: 520,
+    maxInputCurrent: 14,
+    numMppts: 2
+  },
+  {
+    manufacturer: "WEG",
+    name: "WEG SIW500H ST015",
+    maxInputVoltage: 1000,
+    minMpptVoltage: 160,
+    maxMpptVoltage: 850,
+    maxInputCurrent: 22,
+    numMppts: 2
+  },
+
+  // DEYE
+  {
+    manufacturer: "Deye",
+    name: "Deye SUN-5K-G05",
+    maxInputVoltage: 550,
+    minMpptVoltage: 70,
+    maxMpptVoltage: 500,
+    maxInputCurrent: 13,
+    numMppts: 2
+  },
+  {
+    manufacturer: "Deye",
+    name: "Deye SUN-10K-G05",
+    maxInputVoltage: 1000,
+    minMpptVoltage: 140,
+    maxMpptVoltage: 1000,
+    maxInputCurrent: 13,
+    numMppts: 2
+  }
+];
 
 export const MODULE_PRESETS: ModulePreset[] = [
   // CANADIAN SOLAR

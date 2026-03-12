@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User } from 'lucide-react';
+import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User, ImageIcon } from 'lucide-react';
 import { InputGroup } from './components/InputGroup';
 import { Diagram } from './components/Diagram';
 import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, SizingResult } from './utils/solar';
-import { MODULE_PRESETS, ModulePreset } from './utils/presets';
+import { MODULE_PRESETS, ModulePreset, INVERTER_PRESETS, InverterPreset } from './utils/presets';
 import { extractInverterData, extractModuleData } from './utils/ocr';
 import { generatePDF } from './utils/pdf';
 import { initiateGoogleAuth, searchDriveFiles, downloadDriveFile, DriveFile } from './utils/drive';
@@ -16,7 +16,12 @@ interface HistoryItem {
   id: string;
   date: string;
   moduleName: string;
+  inverterName?: string;
   result: SizingResult;
+  module?: ModuleSpecs;
+  inverter?: InverterSpecs;
+  site?: SiteConditions;
+  projectDetails?: { clientName: string, projectName: string, concessionaria: string };
 }
 
 export default function App() {
@@ -56,6 +61,8 @@ export default function App() {
   });
 
   const [showDiagramModal, setShowDiagramModal] = useState(false);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'sizing' | 'settings'>('sizing');
+  const [companyLogo, setCompanyLogo] = useState<string | undefined>(localStorage.getItem('companyLogo') || undefined);
 
   // Optimize: Use useMemo instead of useEffect+useState for derived result
   // This prevents double renders on every input change
@@ -94,6 +101,7 @@ export default function App() {
               id: doc.id,
               date: data.date,
               moduleName: data.moduleName,
+              inverterName: data.inverterName,
               result: data.result
             });
           });
@@ -169,6 +177,7 @@ export default function App() {
          try {
            const data = await extractInverterData(file);
            setInverter(prev => ({ ...prev, ...data }));
+           setSelectedInverterPreset("Inversor Importado (Drive)");
          } catch (err) {
            setOcrError("Falha ao processar arquivo do Drive.");
          } finally {
@@ -199,6 +208,32 @@ export default function App() {
   // Save history when result changes (debounced or manual save? Let's do manual save or auto-add to list logic)
   // Actually, let's add a "Save Calculation" button or just auto-save valid results?
   // User request implies a history list. Let's add a manual "Save" button to keep it clean.
+
+  const [selectedInverterPreset, setSelectedInverterPreset] = useState<string>("");
+  const [inverterSearchTerm, setInverterSearchTerm] = useState("");
+  const [isInverterSearchOpen, setIsInverterSearchOpen] = useState(false);
+
+  const filteredInverterPresets = useMemo(() => {
+    if (!inverterSearchTerm) return INVERTER_PRESETS;
+    return INVERTER_PRESETS.filter(p => 
+      p.name.toLowerCase().includes(inverterSearchTerm.toLowerCase()) ||
+      p.manufacturer.toLowerCase().includes(inverterSearchTerm.toLowerCase())
+    );
+  }, [inverterSearchTerm]);
+
+  const handleInverterPresetSelect = (preset: InverterPreset) => {
+    setSelectedInverterPreset(preset.name);
+    setInverter({
+      model: preset.name,
+      maxInputVoltage: preset.maxInputVoltage,
+      minMpptVoltage: preset.minMpptVoltage,
+      maxMpptVoltage: preset.maxMpptVoltage,
+      maxInputCurrent: preset.maxInputCurrent,
+      numMppts: preset.numMppts,
+    });
+    setIsInverterSearchOpen(false);
+    setInverterSearchTerm("");
+  };
 
   const filteredPresets = useMemo(() => {
     if (!searchTerm) return MODULE_PRESETS;
@@ -234,6 +269,7 @@ export default function App() {
           ...prev,
           ...data
         }));
+        setSelectedInverterPreset("Inversor OCR (Lido)");
       } catch (err) {
         setOcrError("Falha ao ler imagem. Tente novamente com uma imagem mais clara.");
         console.error(err);
@@ -269,7 +305,12 @@ export default function App() {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString(),
       moduleName: selectedPreset || "Módulo Personalizado",
-      result: result
+      inverterName: selectedInverterPreset || "Inversor Personalizado",
+      result: result,
+      module: module,
+      inverter: inverter,
+      site: site,
+      projectDetails: projectDetails
     };
     
     // Save locally for immediate feedback
@@ -285,6 +326,7 @@ export default function App() {
         userId: auth.currentUser.uid,
         date: newItem.date,
         moduleName: newItem.moduleName,
+        inverterName: newItem.inverterName,
         result: newItem.result
       });
     } catch (error) {
@@ -305,8 +347,22 @@ export default function App() {
 
   const handleExportPDF = () => {
     if (result) {
-      generatePDF(result, module, inverter, site, selectedPreset || "Módulo Personalizado", techName, companyName, projectDetails);
+      generatePDF(result, module, inverter, site, selectedPreset || "Módulo Personalizado", techName, companyName, projectDetails, companyLogo);
       setShowPdfModal(false);
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const base64 = event.target.result as string;
+          setCompanyLogo(base64);
+          localStorage.setItem('companyLogo', base64);
+        }
+      };
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
@@ -327,182 +383,197 @@ export default function App() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-amber-100 selection:text-amber-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-amber-500 p-2 rounded-lg text-white shadow-amber-200 shadow-md">
-              <Sun size={20} strokeWidth={2.5} />
+  const renderContent = () => {
+    if (currentView === 'settings') {
+      return (
+        <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">Configurações da Empresa</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Nome da Empresa</label>
+              <input 
+                type="text" 
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Ex: SolarTech Energia"
+                className="w-full max-w-md rounded-lg border border-slate-300 px-4 py-2 focus:border-amber-500 focus:outline-none"
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
-                SolarString<span className="text-amber-600">Pro</span>
-              </h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Professional Tool</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-             <div className="hidden md:flex flex-col items-end mr-2">
-               <span className="text-xs font-medium text-slate-900 flex items-center gap-1">
-                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                 Conectado
-               </span>
-               <span className="text-[10px] text-slate-500 truncate max-w-[150px]">{userEmail}</span>
-             </div>
-             
-             <button 
-               onClick={() => setShowPdfModal(true)}
-               className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg"
-               disabled={!result}
-               title="Gerar Relatório PDF"
-             >
-               <FileText size={18} /> <span className="hidden lg:inline">Relatório PDF</span>
-             </button>
-
-             <button
-               onClick={() => setIsLoggedIn(false)}
-               className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg"
-               title="Sair / Desconectar"
-             >
-               <LogOut size={18} />
-               <span className="hidden sm:inline">Sair</span>
-             </button>
-          </div>
-        </div>
-      </header>
-
-      {/* PDF Config Modal */}
-      {showPdfModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <FileText size={18} className="text-slate-500" /> 
-                Dados do Relatório
-              </h3>
-              <button 
-                onClick={() => setShowPdfModal(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Responsável Técnico</label>
-                <input 
-                  type="text" 
-                  value={techName}
-                  onChange={(e) => setTechName(e.target.value)}
-                  placeholder="Nome do Engenheiro/Técnico"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Empresa</label>
-                <input 
-                  type="text" 
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Nome da Empresa Integradora"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-              <button 
-                onClick={handleExportPDF}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                Gerar PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Drive Selection Modal */}
-      {showDriveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Database size={18} className="text-blue-500" /> 
-                Importar do Google Drive
-              </h3>
-              <button 
-                onClick={() => setShowDriveModal(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              {!driveToken ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-600">
-                    Conecte sua conta Google para acessar seus datasheets (PDF ou Imagens).
-                  </p>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-slate-700">Email (opcional, para facilitar login)</label>
-                    <input 
-                      type="email" 
-                      value={googleEmail}
-                      onChange={(e) => setGoogleEmail(e.target.value)}
-                      placeholder="exemplo@gmail.com"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                    />
+              <label className="block text-sm font-medium text-slate-700 mb-2">Logo da Empresa (Aparecerá nos Relatórios)</label>
+              <div className="flex items-start gap-6">
+                {companyLogo ? (
+                  <div className="relative w-32 h-32 border-2 border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center">
+                    <img src={companyLogo} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
+                    <button 
+                      onClick={() => { setCompanyLogo(undefined); localStorage.removeItem('companyLogo'); }}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 shadow-sm"
+                      title="Remover Logo"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={handleDriveAuth}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    Conectar Google Drive
-                  </button>
+                ) : (
+                  <div className="w-32 h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs text-slate-400 font-medium">Sem Logo</span>
+                  </div>
+                )}
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <Upload size={16} />
+                  <span>Fazer Upload</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleLogoUpload} 
+                    className="hidden" 
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Recomendado: Imagem PNG ou JPG com fundo transparente. Tamanho máximo 2MB.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentView === 'dashboard') {
+      const totalProjects = history.length;
+      const compatibleProjects = history.filter(h => h.result.isCompatible).length;
+      const incompatibleProjects = totalProjects - compatibleProjects;
+
+      return (
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-end mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Dashboard de Projetos</h2>
+              <p className="text-slate-500 mt-1">Visão geral dos seus dimensionamentos recentes.</p>
+            </div>
+            <button 
+              onClick={() => setCurrentView('sizing')}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <Sun size={18} /> Novo Dimensionamento
+            </button>
+          </div>
+
+          {history.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center gap-4">
+                <div className="bg-indigo-50 p-4 rounded-xl text-indigo-600">
+                  <FileText size={24} />
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-sm font-medium text-slate-900">Arquivos Recentes</h4>
-                    <button onClick={() => fetchDriveFiles(driveToken)} className="text-xs text-blue-600 hover:underline">Atualizar</button>
-                  </div>
-                  
-                  {isDriveLoading ? (
-                    <div className="text-center py-8 text-slate-500 text-sm">Carregando arquivos...</div>
-                  ) : driveFiles.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 text-sm">Nenhum PDF ou imagem encontrado.</div>
-                  ) : (
-                    <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-lg">
-                      {driveFiles.map(file => (
-                        <button
-                          key={file.id}
-                          onClick={() => handleDriveFileSelect(file.id)}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3"
-                        >
-                          {file.thumbnailLink ? (
-                            <img src={file.thumbnailLink} alt="" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center text-slate-400">
-                              <FileText size={16} />
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-slate-900 truncate">{file.name}</div>
-                            <div className="text-xs text-slate-500 truncate">ID: {file.id}</div>
-                          </div>
-                        </button>
-                      ))}
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Total de Projetos</div>
+                  <div className="text-2xl font-bold text-slate-900">{totalProjects}</div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center gap-4">
+                <div className="bg-emerald-50 p-4 rounded-xl text-emerald-600">
+                  <CheckCircle size={24} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Compatíveis</div>
+                  <div className="text-2xl font-bold text-slate-900">{compatibleProjects}</div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center gap-4">
+                <div className="bg-amber-50 p-4 rounded-xl text-amber-600">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Com Alertas</div>
+                  <div className="text-2xl font-bold text-slate-900">{incompatibleProjects}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {history.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText size={24} className="text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Nenhum projeto ainda</h3>
+              <p className="text-slate-500 mb-6">Comece a dimensionar sistemas para ver o histórico aqui.</p>
+              <button 
+                onClick={() => setCurrentView('sizing')}
+                className="text-amber-600 font-medium hover:text-amber-700"
+              >
+                Criar primeiro projeto &rarr;
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <h3 className="font-semibold text-slate-900">Histórico Recente</h3>
+                <button onClick={clearHistory} className="text-sm text-red-500 hover:text-red-600 font-medium flex items-center gap-1">
+                  <Trash2 size={14} /> Limpar
+                </button>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {history.map((item) => (
+                  <div key={item.id} className="p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="font-semibold text-slate-900">{item.moduleName}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${item.result.isCompatible ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {item.result.isCompatible ? "Compatível" : "Atenção"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-500 flex items-center gap-4">
+                        <span>Inv: {item.inverterName || 'N/A'}</span>
+                        <span>•</span>
+                        <span>{item.date}</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="flex items-center gap-6 text-sm">
+                      <div className="text-center">
+                        <div className="text-slate-500 text-xs">Mínimo</div>
+                        <div className="font-bold text-slate-900">{item.result.minModules}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-slate-500 text-xs">Máximo</div>
+                        <div className="font-bold text-slate-900">{item.result.maxModules}</div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (item.module) setModule(item.module);
+                          if (item.inverter) setInverter(item.inverter);
+                          if (item.site) setSite(item.site);
+                          if (item.projectDetails) setProjectDetails(item.projectDetails);
+                          setSelectedPreset(item.moduleName);
+                          setSelectedInverterPreset(item.inverterName || "");
+                          setCurrentView('sizing');
+                        }}
+                        className="ml-4 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-medium transition-colors"
+                        title="Carregar Projeto"
+                      >
+                        Carregar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      );
+    }
 
+    return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-900">Dimensionamento de String</h2>
+          <button 
+            onClick={() => setShowPdfModal(true)}
+            className="flex items-center gap-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition-colors px-4 py-2 rounded-lg shadow-sm"
+            disabled={!result}
+            title="Gerar Relatório PDF"
+          >
+            <FileText size={18} /> <span>Gerar Relatório</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* INPUT SECTION */}
@@ -520,17 +591,67 @@ export default function App() {
                   <Settings className="text-indigo-500" size={18} />
                   <h2 className="font-semibold text-slate-900">Inversor</h2>
                 </div>
-                <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors border border-indigo-100">
-                  <Camera size={14} />
-                  {isOcrLoading ? "Processando..." : "Ler Datasheet (OCR)"}
-                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
-                </label>
-                <button 
-                  onClick={() => setShowDriveModal('inverter')}
-                  className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors border border-blue-100 ml-2"
-                >
-                  <Database size={14} /> Drive
-                </button>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer flex items-center gap-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors border border-indigo-100">
+                    <Camera size={14} />
+                    {isOcrLoading ? "Processando..." : "Ler Datasheet"}
+                    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} disabled={isOcrLoading} />
+                  </label>
+                  <button 
+                    onClick={() => setShowDriveModal('inverter')}
+                    className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors border border-blue-100"
+                  >
+                    <Database size={14} /> Drive
+                  </button>
+
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsInverterSearchOpen(!isInverterSearchOpen)}
+                      className="flex items-center gap-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-full transition-colors border border-slate-200 whitespace-nowrap"
+                    >
+                      <Database size={14} />
+                      {selectedInverterPreset ? "Alterar" : "Buscar"}
+                    </button>
+
+                    {isInverterSearchOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                        <div className="p-2 border-b border-slate-100 bg-slate-50">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                            <input 
+                              type="text" 
+                              placeholder="Buscar modelo, fabricante..." 
+                              className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                              value={inverterSearchTerm}
+                              onChange={(e) => setInverterSearchTerm(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto">
+                          {filteredInverterPresets.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-500">Nenhum inversor encontrado</div>
+                          ) : (
+                            filteredInverterPresets.map(p => (
+                              <button
+                                key={p.name}
+                                onClick={() => handleInverterPresetSelect(p)}
+                                className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors border-b border-slate-50 last:border-0"
+                              >
+                                <div className="font-medium text-sm text-slate-900">{p.name}</div>
+                                <div className="text-xs text-slate-500 flex gap-2 mt-0.5">
+                                  <span>{p.maxInputVoltage}V Max</span>
+                                  <span>{p.maxInputCurrent}A Max</span>
+                                  <span>{p.numMppts} MPPTs</span>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
               {ocrError && (
@@ -544,8 +665,11 @@ export default function App() {
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modelo do Inversor</label>
                   <input 
                     type="text" 
-                    value={inverter.model || ""} 
-                    onChange={(e) => setInverter({...inverter, model: e.target.value})}
+                    value={selectedInverterPreset || inverter.model || ""} 
+                    onChange={(e) => {
+                      setSelectedInverterPreset(e.target.value);
+                      setInverter({...inverter, model: e.target.value});
+                    }}
                     placeholder="Ex: Huawei SUN2000-100KTL"
                     className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
                   />
@@ -947,6 +1071,9 @@ export default function App() {
                           <span className="font-medium text-sm text-slate-900">{item.moduleName}</span>
                           <span className="text-xs text-slate-400">{item.date}</span>
                         </div>
+                        <div className="text-xs text-slate-500 mb-1">
+                          Inv: {item.inverterName || 'N/A'}
+                        </div>
                         <div className="text-xs text-slate-600 flex gap-3">
                           <span>Min: <b>{item.result.minModules}</b></span>
                           <span>Max: <b>{item.result.maxModules}</b></span>
@@ -963,6 +1090,184 @@ export default function App() {
           </div>
         </div>
       </main>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-amber-100 selection:text-amber-900 flex flex-col">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-amber-500 p-2 rounded-lg text-white shadow-amber-200 shadow-md">
+              <Sun size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+                SolarString<span className="text-amber-600">Pro</span>
+              </h1>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Professional Tool</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className="hidden md:flex flex-col items-end mr-2">
+               <span className="text-xs font-medium text-slate-900 flex items-center gap-1">
+                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                 Conectado
+               </span>
+               <span className="text-[10px] text-slate-500 truncate max-w-[150px]">{userEmail}</span>
+             </div>
+             
+             <button
+               onClick={() => setIsLoggedIn(false)}
+               className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg"
+               title="Sair / Desconectar"
+             >
+               <LogOut size={18} />
+               <span className="hidden sm:inline">Sair</span>
+             </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col">
+          <div className="p-4">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-3">Menu Principal</div>
+            <nav className="space-y-1">
+              <button 
+                onClick={() => setCurrentView('dashboard')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === 'dashboard' ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              >
+                <History size={18} /> Dashboard
+              </button>
+              <button 
+                onClick={() => setCurrentView('sizing')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === 'sizing' ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              >
+                <Zap size={18} /> Dimensionamento
+              </button>
+              <button 
+                onClick={() => setCurrentView('settings')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === 'settings' ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              >
+                <Settings size={18} /> Configurações
+              </button>
+            </nav>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto bg-slate-50">
+          {renderContent()}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">Configurar Relatório PDF</h3>
+              <button onClick={() => setShowPdfModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Cliente / Projeto</label>
+                <input
+                  type="text"
+                  value={projectDetails.clientName}
+                  onChange={(e) => setProjectDetails({...projectDetails, clientName: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all outline-none"
+                  placeholder="Ex: João da Silva - Residência"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Responsável Técnico (Opcional)</label>
+                <input
+                  type="text"
+                  value={techName}
+                  onChange={(e) => setTechName(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all outline-none"
+                  placeholder="Ex: Eng. Carlos Souza"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Empresa (Opcional)</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all outline-none"
+                  placeholder="Ex: SolarTech Energia"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Logo da Empresa (Opcional)</label>
+                <div className="flex items-center gap-4">
+                  {companyLogo ? (
+                    <div className="relative w-16 h-16 rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                      <img src={companyLogo} alt="Logo da Empresa" className="max-w-full max-h-full object-contain" />
+                      <button
+                        onClick={() => {
+                          setCompanyLogo(null);
+                          localStorage.removeItem('companyLogo');
+                        }}
+                        className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg hover:bg-red-600 transition-colors"
+                        title="Remover Logo"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-400">
+                      <ImageIcon size={24} />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload-modal"
+                    />
+                    <label
+                      htmlFor="logo-upload-modal"
+                      className="cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors w-full"
+                    >
+                      <Upload size={16} className="mr-2" />
+                      {companyLogo ? 'Trocar Logo' : 'Fazer Upload'}
+                    </label>
+                    <p className="text-xs text-slate-500 mt-1">Recomendado: PNG ou JPG, máx 1MB.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+              <button
+                onClick={() => setShowPdfModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors shadow-sm flex items-center gap-2"
+              >
+                <Download size={16} />
+                Gerar PDF
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {showDiagramModal && result && (
         <ElectricalDiagramPrint

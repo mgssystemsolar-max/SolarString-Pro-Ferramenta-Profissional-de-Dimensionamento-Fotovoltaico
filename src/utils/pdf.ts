@@ -9,7 +9,8 @@ export function generatePDF(
   moduleName: string = "Custom Module",
   techName: string = "",
   companyName: string = "",
-  projectDetails?: { clientName: string, projectName: string, concessionaria: string }
+  projectDetails?: { clientName: string, projectName: string, concessionaria: string },
+  companyLogo?: string
 ) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -18,12 +19,30 @@ export function generatePDF(
   let y = margin;
 
   // --- Header ---
-  // Logo Placeholder (Gray Box)
-  doc.setFillColor(240, 240, 240);
-  doc.rect(margin, y, 40, 20, 'F');
-  doc.setFontSize(10);
-  doc.setTextColor(150);
-  doc.text("LOGO", margin + 12, y + 12);
+  if (companyLogo) {
+    try {
+      // Extract format from data URI (e.g., "data:image/png;base64,...")
+      const match = companyLogo.match(/^data:image\/(png|jpeg|jpg);base64,/);
+      const format = match ? match[1].toUpperCase() : 'PNG';
+      
+      doc.addImage(companyLogo, format, margin, y, 40, 20, '', 'FAST');
+    } catch (e) {
+      console.error("Error adding logo to PDF", e);
+      // Fallback to placeholder
+      doc.setFillColor('#F0F0F0');
+      doc.rect(margin, y, 40, 20, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text("LOGO", margin + 12, y + 12);
+    }
+  } else {
+    // Logo Placeholder (Gray Box)
+    doc.setFillColor('#F0F0F0');
+    doc.rect(margin, y, 40, 20, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text("LOGO", margin + 12, y + 12);
+  }
 
   // Company Info
   doc.setTextColor(50);
@@ -77,7 +96,7 @@ export function generatePDF(
 
   // --- Section 1: Parâmetros do Projeto ---
   const sectionTitle = (title: string) => {
-    doc.setFillColor(245, 158, 11); // Amber-500
+    doc.setFillColor('#F59E0B'); // Amber-500
     doc.rect(margin, y, pageWidth - (margin * 2), 8, 'F');
     doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
@@ -136,7 +155,7 @@ export function generatePDF(
 
   // Calculations Box
   doc.setDrawColor(220);
-  doc.setFillColor(250);
+  doc.setFillColor('#FAFAFA');
   doc.roundedRect(margin, y, pageWidth - (margin * 2), 35, 2, 2, 'FD');
   
   let calcY = y + 8;
@@ -167,7 +186,7 @@ export function generatePDF(
   doc.setLineWidth(0.1);
   
   // Table Header
-  doc.setFillColor(230);
+  doc.setFillColor('#E6E6E6');
   doc.rect(margin, y, 85, 8, 'F');
   doc.rect(margin + 85, y, 85, 8, 'F');
   doc.text(`Mínimo de Módulos (por MPPT)`, margin + 5, y + 5.5);
@@ -195,7 +214,7 @@ export function generatePDF(
   sectionTitle("4. Conclusão e Parecer Técnico");
 
   if (result.isCompatible) {
-    doc.setFillColor(220, 252, 231); // Green-100
+    doc.setFillColor('#DCFCE7'); // Green-100
     doc.setDrawColor(22, 163, 74); // Green-600
     doc.roundedRect(margin, y, pageWidth - (margin * 2), 25, 2, 2, 'FD');
     
@@ -211,7 +230,7 @@ export function generatePDF(
     doc.text("nas condições de temperatura informadas.", margin + 10, y + 23);
     y += 35;
   } else {
-    doc.setFillColor(254, 242, 242); // Red-50
+    doc.setFillColor('#FEF2F2'); // Red-50
     doc.setDrawColor(220, 38, 38); // Red-600
     doc.roundedRect(margin, y, pageWidth - (margin * 2), 30 + (result.warnings.length * 5), 2, 2, 'FD');
     

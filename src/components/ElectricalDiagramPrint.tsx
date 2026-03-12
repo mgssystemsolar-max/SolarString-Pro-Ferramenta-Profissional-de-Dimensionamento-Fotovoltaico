@@ -155,6 +155,10 @@ export function ElectricalDiagramPrint({
               {/* Input lines */}
               <line x1="-80" y1="70" x2="0" y2="70" stroke="#0f172a" strokeWidth="2" />
               <line x1="-80" y1="130" x2="0" y2="130" stroke="#0f172a" strokeWidth="2" />
+              <text x="-40" y="60" textAnchor="middle" className="text-[10px] font-bold">String 1</text>
+              {inverter.numMppts && inverter.numMppts > 1 && (
+                <text x="-40" y="120" textAnchor="middle" className="text-[10px] font-bold">String {inverter.numMppts}</text>
+              )}
 
               {/* Output lines AC */}
               <line x1="140" y1="100" x2="220" y2="100" stroke="#0f172a" strokeWidth="3" />

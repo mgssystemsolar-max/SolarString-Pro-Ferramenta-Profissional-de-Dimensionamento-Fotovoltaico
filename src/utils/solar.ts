@@ -88,22 +88,43 @@ export function calculateStringSizing(
   if (inverter.maxInputVoltage <= 0) {
     warnings.push("A tensão máxima de entrada do inversor deve ser maior que 0.");
     errorFields.push("inverter.maxInputVoltage");
+  } else if (inverter.maxInputVoltage > 2500) {
+    warnings.push("A tensão máxima de entrada do inversor está muito alta (acima de 2500V). Verifique o valor.");
+    warningFields.push("inverter.maxInputVoltage");
   }
-  if (inverter.minMpptVoltage < 0) {
-    warnings.push("A tensão mínima do MPPT não pode ser negativa.");
+
+  if (inverter.minMpptVoltage <= 0) {
+    warnings.push("A tensão mínima do MPPT deve ser maior que 0.");
     errorFields.push("inverter.minMpptVoltage");
   }
+  
   if (inverter.maxMpptVoltage <= inverter.minMpptVoltage) {
     warnings.push("A tensão máxima do MPPT deve ser maior que a mínima.");
     errorFields.push("inverter.maxMpptVoltage", "inverter.minMpptVoltage");
+  } else if (inverter.maxMpptVoltage > 2000) {
+    warnings.push("A tensão máxima do MPPT está muito alta (acima de 2000V). Verifique o valor.");
+    warningFields.push("inverter.maxMpptVoltage");
   }
+
   if (inverter.maxMpptVoltage > inverter.maxInputVoltage) {
     warnings.push("A tensão máxima do MPPT não deve exceder a tensão máxima de entrada.");
     warningFields.push("inverter.maxMpptVoltage", "inverter.maxInputVoltage");
   }
+  
   if (inverter.maxInputCurrent <= 0) {
     warnings.push("A corrente máxima de entrada do inversor deve ser maior que 0.");
     errorFields.push("inverter.maxInputCurrent");
+  } else if (inverter.maxInputCurrent > 500) {
+    warnings.push("A corrente máxima de entrada do inversor está muito alta (acima de 500A). Verifique o valor.");
+    warningFields.push("inverter.maxInputCurrent");
+  }
+
+  if (inverter.numMppts !== undefined && inverter.numMppts <= 0) {
+    warnings.push("O número de MPPTs deve ser pelo menos 1.");
+    errorFields.push("inverter.numMppts");
+  } else if (inverter.numMppts !== undefined && inverter.numMppts > 20) {
+    warnings.push("O número de MPPTs está muito alto (acima de 20). Verifique o valor.");
+    warningFields.push("inverter.numMppts");
   }
 
   // Site Checks

@@ -38,7 +38,13 @@ export function InputGroup({
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVal = e.target.value;
+    let newVal = e.target.value;
+    
+    // If min is defined and >= 0, prevent negative signs
+    if (min !== undefined && min >= 0 && newVal.includes('-')) {
+      newVal = newVal.replace('-', '');
+    }
+
     setLocalValue(newVal);
     
     // Allow empty string or minus sign without triggering 0 update immediately if desired,

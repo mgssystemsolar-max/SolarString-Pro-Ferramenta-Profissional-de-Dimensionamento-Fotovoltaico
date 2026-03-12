@@ -728,6 +728,8 @@ export default function App() {
                   value={inverter.maxInputVoltage} 
                   onChange={(v) => setInverter({...inverter, maxInputVoltage: v})} 
                   unit="V" 
+                  min={1}
+                  max={5000}
                   status={getFieldStatus('inverter.maxInputVoltage')}
                 />
                 <div className="flex flex-col justify-center">
@@ -744,6 +746,8 @@ export default function App() {
                   value={inverter.maxInputCurrent} 
                   onChange={(v) => setInverter({...inverter, maxInputCurrent: v})} 
                   unit="A" 
+                  min={0.1}
+                  max={500}
                   status={getFieldStatus('inverter.maxInputCurrent')}
                 />
                 <InputGroup 
@@ -751,6 +755,8 @@ export default function App() {
                   value={inverter.minMpptVoltage} 
                   onChange={(v) => setInverter({...inverter, minMpptVoltage: v})} 
                   unit="V" 
+                  min={1}
+                  max={inverter.maxMpptVoltage - 1}
                   status={getFieldStatus('inverter.minMpptVoltage')}
                 />
                 <InputGroup 
@@ -758,6 +764,8 @@ export default function App() {
                   value={inverter.maxMpptVoltage} 
                   onChange={(v) => setInverter({...inverter, maxMpptVoltage: v})} 
                   unit="V" 
+                  min={inverter.minMpptVoltage + 1}
+                  max={inverter.maxInputVoltage}
                   status={getFieldStatus('inverter.maxMpptVoltage')}
                 />
                 <div className="sm:col-span-2">
@@ -768,6 +776,8 @@ export default function App() {
                     unit="un" 
                     step={1}
                     min={1}
+                    max={20}
+                    status={getFieldStatus('inverter.numMppts')}
                   />
                 </div>
               </div>

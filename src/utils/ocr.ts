@@ -1,7 +1,18 @@
 import { InverterSpecs, ModuleSpecs } from './solar';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+function getAiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("A chave da API do Gemini (GEMINI_API_KEY) não está configurada. Por favor, adicione-a nas variáveis de ambiente.");
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+}
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -18,6 +29,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export async function extractInverterData(file: File): Promise<Partial<InverterSpecs>> {
   try {
+    const ai = getAiClient();
     const base64Data = await fileToBase64(file);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -61,6 +73,7 @@ export async function extractInverterData(file: File): Promise<Partial<InverterS
 
 export async function extractModuleData(file: File): Promise<Partial<ModuleSpecs>> {
   try {
+    const ai = getAiClient();
     const base64Data = await fileToBase64(file);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

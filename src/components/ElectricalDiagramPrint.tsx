@@ -75,7 +75,7 @@ export function ElectricalDiagramPrint({
               <span className="font-bold">Inversor:</span> {inverter.model || 'Genérico'}
             </div>
             <div>
-              <span className="font-bold">Arranjo (String):</span> {result.minModules} a {result.maxModules} módulos por MPPT
+              <span className="font-bold">Arranjo (String):</span> {result.recommendedStrings && result.recommendedModules ? `${result.recommendedStrings} string(s) de ${Math.ceil(result.recommendedModules / result.recommendedStrings)} módulos` : `${result.minModules} a ${result.maxModules} módulos por MPPT`}
             </div>
             <div>
               <span className="font-bold">Qtd. MPPTs:</span> {inverter.numMppts || 1}

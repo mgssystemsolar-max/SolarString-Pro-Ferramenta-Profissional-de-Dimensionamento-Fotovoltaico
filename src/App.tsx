@@ -950,6 +950,15 @@ export default function App() {
                     step={0.01}
                     status={getFieldStatus('module.tempCoeffVmp')}
                   />
+                  <InputGroup 
+                    label="Área do Módulo" 
+                    value={module.area || 0} 
+                    onChange={(v) => setModule({...module, area: v})} 
+                    unit="m²" 
+                    step={0.01}
+                    min={0}
+                    status={getFieldStatus('module.area')}
+                  />
                 </div>
               </div>
             </motion.section>
@@ -980,6 +989,26 @@ export default function App() {
                   unit="°C" 
                   status={getFieldStatus('site.maxTemp')}
                 />
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 mt-2">
+                  <InputGroup 
+                    label="Potência Desejada (Opcional)" 
+                    value={site.desiredPowerKw || 0} 
+                    onChange={(v) => setSite({...site, desiredPowerKw: v})} 
+                    unit="kWp" 
+                    step={0.1}
+                    min={0}
+                    status={getFieldStatus('site.desiredPowerKw')}
+                  />
+                  <InputGroup 
+                    label="Área Disponível (Opcional)" 
+                    value={site.availableSpaceM2 || 0} 
+                    onChange={(v) => setSite({...site, availableSpaceM2: v})} 
+                    unit="m²" 
+                    step={1}
+                    min={0}
+                    status={getFieldStatus('site.availableSpaceM2')}
+                  />
+                </div>
               </div>
             </motion.section>
 
@@ -1092,6 +1121,35 @@ export default function App() {
                       <div className="text-xs text-slate-400 mt-1">módulos por MPPT</div>
                     </div>
                   </div>
+
+                  {/* Recommended Sizing */}
+                  {result?.recommendedModules !== undefined && (
+                    <div className="space-y-3 pt-4 border-t border-slate-100">
+                      <h3 className="text-sm font-medium text-slate-900 flex items-center gap-2">
+                        <Zap size={14} className="text-amber-500" /> Dimensionamento Recomendado
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                          <div className="text-amber-700 text-xs mb-1">Módulos Totais</div>
+                          <div className="font-bold text-amber-900 text-lg">{result.recommendedModules}</div>
+                        </div>
+                        <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                          <div className="text-amber-700 text-xs mb-1">Strings Sugeridas</div>
+                          <div className="font-bold text-amber-900 text-lg">{result.recommendedStrings}</div>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                          <div className="text-slate-600 text-xs mb-1">Potência Total</div>
+                          <div className="font-bold text-slate-900">{result.totalSystemPowerKw?.toFixed(2)} kWp</div>
+                        </div>
+                        {result.totalAreaM2 !== undefined && (
+                          <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                            <div className="text-slate-600 text-xs mb-1">Área Estimada</div>
+                            <div className="font-bold text-slate-900">{result.totalAreaM2.toFixed(1)} m²</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Voltage Details */}
                   <div className="space-y-3 pt-4 border-t border-slate-100">

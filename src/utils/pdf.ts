@@ -210,6 +210,44 @@ export function generatePDF(
     y += 5;
   }
 
+  // Recommended Sizing
+  if (result.recommendedModules !== undefined) {
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("Dimensionamento Recomendado:", margin, y);
+    y += 8;
+    
+    doc.setDrawColor(220);
+    doc.setFillColor('#FFFBEB'); // Amber-50
+    doc.roundedRect(margin, y, pageWidth - (margin * 2), 25, 2, 2, 'FD');
+    
+    let recY = y + 8;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Módulos Totais:`, margin + 5, recY);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${result.recommendedModules}`, margin + 40, recY);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Strings Sugeridas:`, margin + 85, recY);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${result.recommendedStrings}`, margin + 125, recY);
+
+    recY += 8;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Potência Total:`, margin + 5, recY);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${result.totalSystemPowerKw?.toFixed(2)} kWp`, margin + 40, recY);
+
+    if (result.totalAreaM2 !== undefined) {
+      doc.setFont("helvetica", "normal");
+      doc.text(`Área Estimada:`, margin + 85, recY);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${result.totalAreaM2.toFixed(1)} m²`, margin + 125, recY);
+    }
+    
+    y += 35;
+  }
+
   // --- Section 4: Conclusão ---
   sectionTitle("4. Conclusão e Parecer Técnico");
 

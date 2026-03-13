@@ -8,6 +8,7 @@ export interface ModuleSpecs {
   imp: number; // Amps
   tempCoeffVoc: number; // %/°C (usually negative, e.g., -0.29)
   tempCoeffVmp: number; // %/°C (usually negative, e.g., -0.35)
+  area?: number; // m²
 }
 
 export interface InverterSpecs {
@@ -22,6 +23,8 @@ export interface InverterSpecs {
 export interface SiteConditions {
   minTemp: number; // °C
   maxTemp: number; // °C
+  desiredPowerKw?: number; // kWp
+  availableSpaceM2?: number; // m²
 }
 
 export interface SizingResult {
@@ -33,6 +36,10 @@ export interface SizingResult {
   warnings: string[];
   errorFields: string[];
   warningFields: string[];
+  recommendedModules?: number;
+  recommendedStrings?: number;
+  totalSystemPowerKw?: number;
+  totalAreaM2?: number;
 }
 
 export function calculateStringSizing(
@@ -83,6 +90,10 @@ export function calculateStringSizing(
     warnings.push("O coeficiente de temperatura do Vmp (Pmax) geralmente é negativo.");
     warningFields.push("module.tempCoeffVmp");
   }
+  if (module.area !== undefined && module.area <= 0) {
+    warnings.push("A área do módulo deve ser maior que 0.");
+    warningFields.push("module.area");
+  }
 
   // Inverter Checks
   if (inverter.maxInputVoltage <= 0) {
@@ -132,6 +143,14 @@ export function calculateStringSizing(
     warnings.push("A temperatura mínima não pode ser maior que a máxima.");
     errorFields.push("site.minTemp", "site.maxTemp");
   }
+  if (site.desiredPowerKw !== undefined && site.desiredPowerKw < 0) {
+    warnings.push("A potência desejada não pode ser negativa.");
+    errorFields.push("site.desiredPowerKw");
+  }
+  if (site.availableSpaceM2 !== undefined && site.availableSpaceM2 < 0) {
+    warnings.push("A área disponível não pode ser negativa.");
+    errorFields.push("site.availableSpaceM2");
+  }
 
   // If we have critical errors, stop calculation or return early with errors
   if (errorFields.length > 0) {
@@ -176,6 +195,60 @@ export function calculateStringSizing(
     warningFields.push("module.imp", "inverter.maxInputCurrent");
   }
 
+  // 4. Calculate Recommended Sizing based on Desired Power and Space
+  let recommendedModules: number | undefined;
+  let recommendedStrings: number | undefined;
+  let totalSystemPowerKw: number | undefined;
+  let totalAreaM2: number | undefined;
+
+  if (site.desiredPowerKw && site.desiredPowerKw > 0) {
+    const desiredPowerW = site.desiredPowerKw * 1000;
+    const targetModules = Math.ceil(desiredPowerW / module.power);
+    
+    // Check space constraint if provided
+    let allowedModulesBySpace = targetModules;
+    if (site.availableSpaceM2 && site.availableSpaceM2 > 0 && module.area && module.area > 0) {
+      allowedModulesBySpace = Math.floor(site.availableSpaceM2 / module.area);
+      if (targetModules > allowedModulesBySpace) {
+        warnings.push(`Atenção: A área disponível (${site.availableSpaceM2}m²) comporta no máximo ${allowedModulesBySpace} módulos, o que é menor que os ${targetModules} módulos necessários para a potência desejada.`);
+        warningFields.push("site.availableSpaceM2", "site.desiredPowerKw");
+      }
+    }
+
+    const actualModules = Math.min(targetModules, allowedModulesBySpace);
+    
+    if (actualModules > 0) {
+      // Try to distribute modules into strings
+      const numMppts = inverter.numMppts || 1;
+      // We want to find a number of strings that fits the modules and respects min/max limits
+      // Simplest approach: divide modules equally among MPPTs
+      // If actualModules / numMppts > maxModules, we need more strings per MPPT (parallel), but let's assume 1 string per MPPT for simplicity first.
+      
+      let strings = numMppts;
+      let modulesPerString = Math.ceil(actualModules / strings);
+      
+      if (modulesPerString > maxModules) {
+        // Need more strings
+        strings = Math.ceil(actualModules / maxModules);
+        modulesPerString = Math.ceil(actualModules / strings);
+      }
+      
+      if (modulesPerString < minModules) {
+        warnings.push(`Atenção: A quantidade de módulos por string (${modulesPerString}) para atingir a potência desejada é menor que o mínimo exigido pelo inversor (${minModules}).`);
+        warningFields.push("site.desiredPowerKw");
+      } else if (modulesPerString > maxModules) {
+        warnings.push(`Atenção: Não é possível atingir a potência desejada sem exceder a tensão máxima do inversor.`);
+      } else {
+        recommendedModules = actualModules;
+        recommendedStrings = strings;
+        totalSystemPowerKw = (actualModules * module.power) / 1000;
+        if (module.area) {
+          totalAreaM2 = actualModules * module.area;
+        }
+      }
+    }
+  }
+
   return {
     maxModules: Math.max(0, maxModules),
     minModules: Math.max(0, minModules),
@@ -184,6 +257,10 @@ export function calculateStringSizing(
     isCompatible: warnings.length === 0 || (warnings.length === 1 && warnings[0].includes("clipping")), // Clipping is often acceptable design
     warnings,
     errorFields,
-    warningFields
+    warningFields,
+    recommendedModules,
+    recommendedStrings,
+    totalSystemPowerKw,
+    totalAreaM2
   };
 }

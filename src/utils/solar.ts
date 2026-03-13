@@ -190,8 +190,11 @@ export function calculateStringSizing(
     errorFields.push("inverter.minMpptVoltage", "inverter.maxInputVoltage", "module.voc", "module.vmp");
   }
 
-  if (module.imp > inverter.maxInputCurrent) {
-    warnings.push(`Atenção: A corrente do módulo (${module.imp}A) excede a corrente máxima do inversor (${inverter.maxInputCurrent}A). O inversor irá limitar a potência (clipping).`);
+  if (module.isc > inverter.maxInputCurrent) {
+    warnings.push(`Incompatível: A corrente de curto-circuito do módulo (${module.isc}A) excede a corrente máxima de entrada do inversor (${inverter.maxInputCurrent}A).`);
+    errorFields.push("module.isc", "inverter.maxInputCurrent");
+  } else if (module.imp > inverter.maxInputCurrent) {
+    warnings.push(`Atenção: A corrente de operação do módulo (${module.imp}A) excede a corrente máxima do inversor (${inverter.maxInputCurrent}A). O inversor irá limitar a potência (clipping).`);
     warningFields.push("module.imp", "inverter.maxInputCurrent");
   }
 
@@ -242,9 +245,13 @@ export function calculateStringSizing(
         // Check current with parallel strings
         const stringsPerMppt = Math.ceil(strings / numMppts);
         const totalImpPerMppt = stringsPerMppt * module.imp;
+        const totalIscPerMppt = stringsPerMppt * module.isc;
 
-        if (totalImpPerMppt > inverter.maxInputCurrent) {
-           warnings.push(`Atenção: O arranjo recomendado possui ${stringsPerMppt} string(s) em paralelo por MPPT, resultando em uma corrente de ${totalImpPerMppt.toFixed(1)}A, que excede a corrente máxima do inversor (${inverter.maxInputCurrent}A). Haverá limitação de potência (clipping).`);
+        if (totalIscPerMppt > inverter.maxInputCurrent) {
+           warnings.push(`Incompatível: O arranjo recomendado possui ${stringsPerMppt} string(s) em paralelo por MPPT, resultando em uma corrente de curto-circuito de ${totalIscPerMppt.toFixed(1)}A, que excede a corrente máxima do inversor (${inverter.maxInputCurrent}A).`);
+           errorFields.push("site.desiredPowerKw", "inverter.maxInputCurrent");
+        } else if (totalImpPerMppt > inverter.maxInputCurrent) {
+           warnings.push(`Atenção: O arranjo recomendado possui ${stringsPerMppt} string(s) em paralelo por MPPT, resultando em uma corrente de operação de ${totalImpPerMppt.toFixed(1)}A, que excede a corrente máxima do inversor (${inverter.maxInputCurrent}A). Haverá limitação de potência (clipping).`);
            warningFields.push("site.desiredPowerKw", "inverter.maxInputCurrent");
         }
 
@@ -263,7 +270,7 @@ export function calculateStringSizing(
     minModules: Math.max(0, minModules),
     vocMax,
     vmpMin,
-    isCompatible: warnings.length === 0 || (warnings.length === 1 && warnings[0].includes("clipping")), // Clipping is often acceptable design
+    isCompatible: errorFields.length === 0 && (warnings.length === 0 || warnings.every(w => w.includes("clipping") || w.includes("Atenção"))),
     warnings,
     errorFields,
     warningFields,

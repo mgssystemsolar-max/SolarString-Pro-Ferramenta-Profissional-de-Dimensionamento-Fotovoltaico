@@ -9,7 +9,17 @@ export function generatePDF(
   moduleName: string = "Custom Module",
   techName: string = "",
   companyName: string = "",
-  projectDetails?: { clientName: string, projectName: string, concessionaria: string },
+  projectDetails?: { 
+    clientName: string, 
+    projectName: string, 
+    concessionaria: string,
+    date?: string,
+    time?: string,
+    street?: string,
+    neighborhood?: string,
+    city?: string,
+    state?: string
+  },
   companyLogo?: string
 ) {
   const doc = new jsPDF();
@@ -89,7 +99,37 @@ export function generatePDF(
     doc.text(`Projeto: ${projectDetails.projectName || 'Não informado'}`, margin, y);
     y += 6;
     doc.text(`Concessionária: ${projectDetails.concessionaria || 'Não informada'}`, margin, y);
-    y += 10;
+    
+    if (projectDetails.date || projectDetails.time || projectDetails.street || projectDetails.city) {
+      y += 6;
+      doc.setFont("helvetica", "bold");
+      doc.text("Localização e Data do Entendimento:", margin, y);
+      doc.setFont("helvetica", "normal");
+      y += 6;
+      
+      const dateTimeStr = [
+        projectDetails.date ? `Data: ${projectDetails.date.split('-').reverse().join('/')}` : null,
+        projectDetails.time ? `Hora: ${projectDetails.time}` : null
+      ].filter(Boolean).join(' às ');
+      if (dateTimeStr) {
+        doc.text(dateTimeStr, margin, y);
+        y += 6;
+      }
+
+      const addressParts = [
+        projectDetails.street,
+        projectDetails.neighborhood,
+        projectDetails.city,
+        projectDetails.state
+      ].filter(Boolean);
+      
+      if (addressParts.length > 0) {
+        doc.text(`Endereço: ${addressParts.join(', ')}`, margin, y);
+        y += 6;
+      }
+    }
+    
+    y += 4;
   }
 
   y += 5;

@@ -21,7 +21,17 @@ interface HistoryItem {
   module?: ModuleSpecs;
   inverter?: InverterSpecs;
   site?: SiteConditions;
-  projectDetails?: { clientName: string, projectName: string, concessionaria: string };
+  projectDetails?: { 
+    clientName: string, 
+    projectName: string, 
+    concessionaria: string,
+    date: string,
+    time: string,
+    street: string,
+    neighborhood: string,
+    city: string,
+    state: string
+  };
 }
 
 export default function App() {
@@ -60,7 +70,13 @@ export default function App() {
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
-    concessionaria: "Enel Ceará"
+    concessionaria: "Enel Ceará",
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+    street: "",
+    neighborhood: "",
+    city: "",
+    state: ""
   });
 
   const [showDiagramModal, setShowDiagramModal] = useState(false);
@@ -1139,6 +1155,74 @@ export default function App() {
                     <option value="Energisa">Energisa</option>
                     <option value="Outra">Outra</option>
                   </select>
+                </div>
+                
+                {/* New precise location and time fields */}
+                <div className="sm:col-span-2 pt-4 border-t border-slate-100 mt-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Localização e Data do Entendimento</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Data</label>
+                      <input 
+                        type="date" 
+                        value={projectDetails.date} 
+                        onChange={(e) => setProjectDetails({...projectDetails, date: e.target.value})}
+                        className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Hora</label>
+                      <input 
+                        type="time" 
+                        value={projectDetails.time} 
+                        onChange={(e) => setProjectDetails({...projectDetails, time: e.target.value})}
+                        className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Rua / Endereço</label>
+                      <input 
+                        type="text" 
+                        value={projectDetails.street} 
+                        onChange={(e) => setProjectDetails({...projectDetails, street: e.target.value})}
+                        placeholder="Ex: Rua das Flores, 123"
+                        className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Bairro</label>
+                      <input 
+                        type="text" 
+                        value={projectDetails.neighborhood} 
+                        onChange={(e) => setProjectDetails({...projectDetails, neighborhood: e.target.value})}
+                        placeholder="Ex: Centro"
+                        className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Município</label>
+                        <input 
+                          type="text" 
+                          value={projectDetails.city} 
+                          onChange={(e) => setProjectDetails({...projectDetails, city: e.target.value})}
+                          placeholder="Ex: Fortaleza"
+                          className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Estado</label>
+                        <input 
+                          type="text" 
+                          value={projectDetails.state} 
+                          onChange={(e) => setProjectDetails({...projectDetails, state: e.target.value})}
+                          placeholder="Ex: CE"
+                          maxLength={2}
+                          className="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.section>

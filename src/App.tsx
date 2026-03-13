@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User, ImageIcon, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Sun, Zap, Thermometer, AlertTriangle, CheckCircle, Info, Settings, Upload, FileText, History, Download, Trash2, Camera, Search, Database, X, LogOut, User, ImageIcon, RefreshCw, CheckCircle2, Shield } from 'lucide-react';
 import { InputGroup } from './components/InputGroup';
 import { Diagram } from './components/Diagram';
 import { calculateStringSizing, ModuleSpecs, InverterSpecs, SiteConditions, SizingResult } from './utils/solar';
@@ -26,6 +26,7 @@ interface HistoryItem {
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState("");
 
   const [module, setModule] = useState<ModuleSpecs>({
@@ -63,7 +64,7 @@ export default function App() {
   });
 
   const [showDiagramModal, setShowDiagramModal] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'sizing' | 'settings'>('sizing');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'sizing' | 'settings' | 'admin'>('sizing');
   const [companyLogo, setCompanyLogo] = useState<string | undefined>(localStorage.getItem('companyLogo') || undefined);
 
   // Optimize: Use useMemo instead of useEffect+useState for derived result
@@ -419,8 +420,9 @@ export default function App() {
     return 'default';
   };
 
-  const handleLogin = (email: string) => {
+  const handleLogin = (email: string, adminFlag: boolean = false) => {
     setUserEmail(email);
+    setIsAdmin(adminFlag);
     setIsLoggedIn(true);
     // If user provides email here, we can use it as hint for Google Auth later
     setGoogleEmail(email);
@@ -431,6 +433,33 @@ export default function App() {
   }
 
   const renderContent = () => {
+    if (currentView === 'admin' && isAdmin) {
+      return (
+        <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">Painel do Administrador</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+              <Shield className="text-amber-600" size={32} />
+              <div>
+                <h3 className="font-semibold text-amber-900">Área Restrita</h3>
+                <p className="text-sm text-amber-700">Você está logado como administrador. Aqui você pode configurar parâmetros globais do sistema.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h4 className="font-medium text-slate-900">Configurações do Sistema</h4>
+              <p className="text-sm text-slate-500">Em breve: Gerenciamento de presets de módulos e inversores, controle de usuários e logs de acesso.</p>
+              
+              {/* Placeholder for future admin settings */}
+              <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
+                <p className="text-sm text-slate-600 text-center py-8">Nenhuma configuração pendente.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (currentView === 'settings') {
       return (
         <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -1300,6 +1329,14 @@ export default function App() {
               >
                 <Settings size={18} /> Configurações
               </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setCurrentView('admin')}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mt-4 ${currentView === 'admin' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+                >
+                  <Shield size={18} /> Painel Admin
+                </button>
+              )}
             </nav>
           </div>
         </aside>

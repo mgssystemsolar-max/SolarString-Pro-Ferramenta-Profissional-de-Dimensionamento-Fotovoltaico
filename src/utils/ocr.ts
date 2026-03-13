@@ -42,7 +42,7 @@ export async function extractInverterData(file: File): Promise<Partial<InverterS
             },
           },
           {
-            text: "Extraia as especificações técnicas deste datasheet de inversor solar. Retorne APENAS um objeto JSON com os valores numéricos encontrados.",
+            text: "Extraia as especificações técnicas deste datasheet de inversor solar. Retorne APENAS um objeto JSON com os valores numéricos e o modelo/fabricante encontrados.",
           },
         ],
       },
@@ -51,6 +51,8 @@ export async function extractInverterData(file: File): Promise<Partial<InverterS
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            model: { type: Type.STRING, description: "Nome do modelo do inversor" },
+            manufacturer: { type: Type.STRING, description: "Nome do fabricante do inversor" },
             maxInputVoltage: { type: Type.NUMBER, description: "Tensão máxima de entrada (Max Input Voltage / Max DC Voltage) em Volts" },
             minMpptVoltage: { type: Type.NUMBER, description: "Tensão mínima da faixa de MPPT (Min MPPT Voltage) em Volts" },
             maxMpptVoltage: { type: Type.NUMBER, description: "Tensão máxima da faixa de MPPT (Max MPPT Voltage) em Volts" },
@@ -86,7 +88,7 @@ export async function extractModuleData(file: File): Promise<Partial<ModuleSpecs
             },
           },
           {
-            text: "Extraia as especificações técnicas (STC - Standard Test Conditions) deste datasheet de módulo/painel solar fotovoltaico. Retorne APENAS um objeto JSON com os valores numéricos encontrados.",
+            text: "Extraia as especificações técnicas (STC - Standard Test Conditions) deste datasheet de módulo/painel solar fotovoltaico. Retorne APENAS um objeto JSON com os valores numéricos e o modelo/fabricante encontrados.",
           },
         ],
       },
@@ -95,6 +97,8 @@ export async function extractModuleData(file: File): Promise<Partial<ModuleSpecs
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            model: { type: Type.STRING, description: "Nome do modelo do módulo solar" },
+            manufacturer: { type: Type.STRING, description: "Nome do fabricante do módulo solar" },
             power: { type: Type.NUMBER, description: "Potência nominal máxima (Pmax) em Watts" },
             voc: { type: Type.NUMBER, description: "Tensão de circuito aberto (Voc / Open Circuit Voltage) em Volts" },
             vmp: { type: Type.NUMBER, description: "Tensão de máxima potência (Vmp / Maximum Power Voltage) em Volts" },

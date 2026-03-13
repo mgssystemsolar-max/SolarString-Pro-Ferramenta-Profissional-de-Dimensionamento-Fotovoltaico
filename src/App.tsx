@@ -166,6 +166,32 @@ export default function App() {
     initiateGoogleAuth(clientId, googleEmail);
   };
 
+  const findInverterPreset = (data: Partial<InverterSpecs> & { model?: string, manufacturer?: string }) => {
+    if (!data.model && !data.manufacturer) return null;
+    return INVERTER_PRESETS.find(p => {
+      if (data.model && (p.name.toLowerCase().includes(data.model.toLowerCase()) || data.model.toLowerCase().includes(p.name.toLowerCase()))) {
+        return true;
+      }
+      if (data.manufacturer && data.maxInputVoltage && p.manufacturer.toLowerCase().includes(data.manufacturer.toLowerCase()) && p.maxInputVoltage === data.maxInputVoltage) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  const findModulePreset = (data: Partial<ModuleSpecs> & { model?: string, manufacturer?: string }) => {
+    if (!data.model && !data.manufacturer) return null;
+    return MODULE_PRESETS.find(p => {
+      if (data.model && (p.name.toLowerCase().includes(data.model.toLowerCase()) || data.model.toLowerCase().includes(p.name.toLowerCase()))) {
+        return true;
+      }
+      if (data.manufacturer && data.power && p.manufacturer.toLowerCase().includes(data.manufacturer.toLowerCase()) && p.power === data.power) {
+        return true;
+      }
+      return false;
+    });
+  };
+
   const handleDriveFileSelect = async (fileId: string) => {
     if (!driveToken || !showDriveModal) return;
     
@@ -179,8 +205,14 @@ export default function App() {
          setOcrError(null);
          try {
            const data = await extractInverterData(file);
-           setInverter(prev => ({ ...prev, ...data }));
-           setSelectedInverterPreset("Inversor Importado (Drive)");
+           const matchedPreset = findInverterPreset(data);
+           if (matchedPreset) {
+             handleInverterPresetSelect(matchedPreset);
+             // Optionally show a success message that it was auto-detected
+           } else {
+             setInverter(prev => ({ ...prev, ...data }));
+             setSelectedInverterPreset("Inversor Importado (Drive)");
+           }
          } catch (err) {
            setOcrError("Falha ao processar arquivo do Drive.");
          } finally {
@@ -191,8 +223,13 @@ export default function App() {
          setModuleOcrError(null);
          try {
            const data = await extractModuleData(file);
-           setModule(prev => ({ ...prev, ...data }));
-           setSelectedPreset("Módulo Importado (Drive)");
+           const matchedPreset = findModulePreset(data);
+           if (matchedPreset) {
+             handlePresetSelect(matchedPreset);
+           } else {
+             setModule(prev => ({ ...prev, ...data }));
+             setSelectedPreset("Módulo Importado (Drive)");
+           }
          } catch (err) {
            setModuleOcrError("Falha ao processar arquivo do Drive.");
          } finally {
@@ -310,11 +347,16 @@ export default function App() {
       setOcrError(null);
       try {
         const data = await extractInverterData(e.target.files[0]);
-        setInverter(prev => ({
-          ...prev,
-          ...data
-        }));
-        setSelectedInverterPreset("Inversor OCR (Lido)");
+        const matchedPreset = findInverterPreset(data);
+        if (matchedPreset) {
+          handleInverterPresetSelect(matchedPreset);
+        } else {
+          setInverter(prev => ({
+            ...prev,
+            ...data
+          }));
+          setSelectedInverterPreset("Inversor OCR (Lido)");
+        }
       } catch (err) {
         setOcrError("Falha ao ler o arquivo. Tente novamente com um arquivo mais nítido.");
         console.error(err);
@@ -330,13 +372,18 @@ export default function App() {
       setModuleOcrError(null);
       try {
         const data = await extractModuleData(e.target.files[0]);
-        setModule(prev => ({
-          ...prev,
-          ...data
-        }));
-        setSelectedPreset("Módulo OCR (Lido)");
-        setModuleDiscrepancies([]);
-        setCompareMessage(null);
+        const matchedPreset = findModulePreset(data);
+        if (matchedPreset) {
+          handlePresetSelect(matchedPreset);
+        } else {
+          setModule(prev => ({
+            ...prev,
+            ...data
+          }));
+          setSelectedPreset("Módulo OCR (Lido)");
+          setModuleDiscrepancies([]);
+          setCompareMessage(null);
+        }
       } catch (err) {
         setModuleOcrError("Falha ao ler o arquivo. Tente novamente com um arquivo mais nítido.");
         console.error(err);
